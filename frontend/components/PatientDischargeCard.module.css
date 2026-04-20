@@ -1,0 +1,152 @@
+.card {
+  padding: 1.2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.header h2 {
+  margin: 0;
+}
+
+.header p {
+  margin: 0.35rem 0 0;
+  color: var(--text-soft);
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field label {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: white;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.submit {
+  border: none;
+  border-radius: 14px;
+  background: #b34b2f;
+  color: white;
+  font-weight: 800;
+  padding: 0.95rem 1.2rem;
+  cursor: pointer;
+}
+
+.message,
+.error,
+.empty {
+  margin: 0.9rem 0 0;
+}
+
+.message {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.empty {
+  color: var(--text-soft);
+}
+
+.list {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.patientItem {
+  padding: 1rem;
+  border-radius: 16px;
+  background: #f8fbfb;
+  border: 1px solid var(--border);
+}
+
+.patientHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.3rem;
+}
+
+.patientItem p {
+  margin: 0.2rem 0;
+  color: var(--text-soft);
+}
+
+.patientActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.65rem;
+}
+
+.secondaryButton {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+  color: #b34b2f;
+  font-weight: 700;
+  padding: 0.7rem 0.95rem;
+  cursor: pointer;
+}
+
+.active,
+.discharged {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.active {
+  color: var(--primary);
+}
+
+.discharged {
+  color: #b34b2f;
+}
+
+@media (max-width: 760px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .form {
+    grid-template-columns: 1fr;
+  }
+}

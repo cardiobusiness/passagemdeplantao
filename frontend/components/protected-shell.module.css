@@ -1,0 +1,98 @@
+.page {
+  min-height: 100vh;
+  padding: 1rem 0 2rem;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.brandBlock {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--primary-strong);
+}
+
+.nav {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.navLink,
+.navLinkActive {
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.navLink {
+  background: var(--surface-muted);
+  color: var(--primary-strong);
+}
+
+.navLink:hover,
+.navLinkActive:hover {
+  transform: translateY(-1px);
+}
+
+.navLinkActive {
+  background: var(--primary);
+  color: white;
+}
+
+.userBlock {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  text-align: right;
+}
+
+.userBlock strong {
+  display: block;
+}
+
+.userBlock span {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.logoutButton {
+  border: none;
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  background: #102f4b;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loadingCard {
+  padding: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .userBlock {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .logoutButton {
+    width: 100%;
+  }
+}

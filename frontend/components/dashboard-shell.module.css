@@ -1,0 +1,161 @@
+.page {
+  padding: 1.25rem 0 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.header h1 {
+  margin: 0.4rem 0;
+  font-size: clamp(1.8rem, 3vw, 3rem);
+}
+
+.header p {
+  margin: 0;
+  color: var(--text-soft);
+  max-width: 40rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.linkButton {
+  padding: 0.9rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.primaryButton {
+  padding: 0.9rem 1.1rem;
+  border-radius: 14px;
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.35fr 0.95fr;
+  gap: 1rem;
+}
+
+.section {
+  padding: 1.2rem;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.summaryCard {
+  padding: 1rem;
+  background: linear-gradient(180deg, white, #f7fbfb);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+
+.summaryCard span {
+  display: block;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.summaryCard strong {
+  font-size: 1.7rem;
+}
+
+.summaryCard small {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.rightColumn {
+  display: grid;
+  gap: 1rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.listItem {
+  padding: 1rem;
+  border-radius: 16px;
+  background: #f8fbfb;
+  border: 1px solid var(--border);
+}
+
+.listItem strong {
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.listItem p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.statusRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.empty {
+  color: var(--text-soft);
+}
+
+@media (max-width: 1120px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding-top: 0.75rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+

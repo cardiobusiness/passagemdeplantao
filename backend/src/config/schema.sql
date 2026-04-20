@@ -1,0 +1,71 @@
+CREATE TABLE IF NOT EXISTS physiotherapists (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(160) NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS beds (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(10) NOT NULL UNIQUE,
+  sector VARCHAR(20) NOT NULL,
+  occupied BOOLEAN DEFAULT FALSE,
+  status VARCHAR(30) NOT NULL DEFAULT 'Vago'
+);
+
+CREATE TABLE IF NOT EXISTS patients (
+  id SERIAL PRIMARY KEY,
+  bed_id INTEGER REFERENCES beds(id),
+  record_number VARCHAR(30) NOT NULL UNIQUE,
+  name VARCHAR(160) NOT NULL,
+  age INTEGER NOT NULL,
+  diagnosis TEXT NOT NULL,
+  admission_date DATE NOT NULL,
+  ventilatory_support VARCHAR(60) NOT NULL,
+  mobility_level VARCHAR(60) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS patient_alerts (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lab_results (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  exam_name VARCHAR(120) NOT NULL,
+  result_value VARCHAR(120) NOT NULL,
+  collected_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS arterial_blood_gases (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  ph_value VARCHAR(10) NOT NULL,
+  pao2 VARCHAR(10) NOT NULL,
+  paco2 VARCHAR(10) NOT NULL,
+  hco3 VARCHAR(10) NOT NULL,
+  collected_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS imaging_exams (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  exam_type VARCHAR(80) NOT NULL,
+  result_text TEXT NOT NULL,
+  exam_date DATE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS physiotherapy_evolutions (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  evolution_type VARCHAR(30) NOT NULL,
+  professional_name VARCHAR(120) NOT NULL,
+  note TEXT NOT NULL,
+  recorded_at TIMESTAMP NOT NULL
+);

@@ -1,0 +1,30 @@
+.card {
+  padding: 1.2rem;
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.patientList {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.patientItem {
+  padding: 1rem;
+  border-radius: 16px;
+  background: #f7fbfb;
+  border: 1px solid var(--border);
+}
+
+.patientItem strong {
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.patientItem p {
+  margin: 0.2rem 0;
+  color: var(--text-soft);
+}
+

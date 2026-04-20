@@ -1,0 +1,128 @@
+.page {
+  padding: 1.25rem 0 2rem;
+}
+
+.header {
+  margin-bottom: 1.5rem;
+}
+
+.header h1 {
+  margin: 0.4rem 0;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+}
+
+.header p {
+  margin: 0;
+  max-width: 42rem;
+  color: var(--text-soft);
+}
+
+.section {
+  margin-bottom: 1.25rem;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+}
+
+.sectionHeader span {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.card,
+.emptyCard {
+  padding: 1rem;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.85rem;
+}
+
+.cardHeader strong,
+.cardHeader span {
+  display: block;
+}
+
+.cardHeader span {
+  color: var(--text-soft);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.meta span {
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--primary-strong);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.summary {
+  margin: 0 0 1rem;
+  color: var(--text-soft);
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  font-weight: 700;
+}
+
+.primaryButton {
+  background: var(--primary);
+  color: white;
+}
+
+.secondaryButton {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--primary-strong);
+}
+
+.emptyCard {
+  color: var(--text-soft);
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeader,
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
