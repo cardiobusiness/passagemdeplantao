@@ -8,8 +8,6 @@ services:
       - PORT=4000
       - NODE_ENV=production
     restart: unless-stopped
-    networks:
-      - traefik-proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.cti-backend.rule=Host(`passagemdeplantao.eletrostarsoft.com.br`) && PathPrefix(`/api`)"
@@ -28,8 +26,6 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    networks:
-      - traefik-proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.cti-frontend.rule=Host(`passagemdeplantao.eletrostarsoft.com.br`)"
@@ -37,7 +33,3 @@ services:
       - "traefik.http.routers.cti-frontend.tls=true"
       - "traefik.http.routers.cti-frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.cti-frontend.loadbalancer.server.port=3000"
-
-networks:
-  traefik-proxy:
-    external: true
