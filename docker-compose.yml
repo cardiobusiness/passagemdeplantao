@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: cti-backend
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: cti-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    depends_on:
+      - backend
