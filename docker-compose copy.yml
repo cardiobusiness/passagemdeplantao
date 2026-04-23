@@ -4,18 +4,20 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: cti-backend
+    # ports:
+    #   - "4000:4000" # Removido: O Traefik acessará via rede interna do Docker
     environment:
       - PORT=4000
       - NODE_ENV=production
     restart: unless-stopped
     networks:
-      - traefik-proxy
+      - traefik-proxy # Ajuste para o nome da rede do seu Traefik
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.cti-backend.rule=Host(`passagemdeplantao.eletrostarsoft.com.br`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.cti-backend.entrypoints=websecure"
+      - "traefik.http.routers.cti-backend.entrypoints=websecure" # Entrypoint de HTTPS no Traefik (geralmente websecure)
       - "traefik.http.routers.cti-backend.tls=true"
-      - "traefik.http.routers.cti-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.cti-backend.tls.certresolver=letsencrypt" # Opcional: ajuste para o nome do seu resolver no Traefik
       - "traefik.http.services.cti-backend.loadbalancer.server.port=4000"
 
   frontend:
@@ -23,6 +25,8 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     container_name: cti-frontend
+    # ports:
+    #   - "3000:3000" # Removido: O Traefik acessará via rede interna do Docker
     environment:
       - NODE_ENV=production
     restart: unless-stopped
@@ -33,11 +37,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.cti-frontend.rule=Host(`passagemdeplantao.eletrostarsoft.com.br`)"
-      - "traefik.http.routers.cti-frontend.entrypoints=websecure"
+      - "traefik.http.routers.cti-frontend.entrypoints=websecure" # Entrypoint de HTTPS no Traefik
       - "traefik.http.routers.cti-frontend.tls=true"
-      - "traefik.http.routers.cti-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.cti-frontend.tls.certresolver=letsencrypt" # Opcional: ajuste para o nome do seu resolver no Traefik
       - "traefik.http.services.cti-frontend.loadbalancer.server.port=3000"
 
 networks:
   traefik-proxy:
-    external: true
+    external: true # Assumindo que a rede do Traefik já existe externamente
