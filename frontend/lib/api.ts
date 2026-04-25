@@ -1,19 +1,25 @@
 import {
   Bed,
+  BedFormPayload,
   CreatePatientLabPayload,
   CreatePatientPayload,
   DashboardSummary,
   DischargePatientPayload,
   Handover,
   LoginResponse,
+  Organization,
   ResetPasswordPayload,
   Patient,
   PatientLab,
+  Sector,
+  SectorFormPayload,
   UpdatePatientClinicalPayload,
+  UpdateOrganizationPayload,
   UpdateUserPayload,
   User,
   UserFormPayload
 } from "./types";
+import { getStoredToken } from "./auth";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://passagemdeplantao.eletrostarsoft.com.br/api";
 
@@ -56,12 +62,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json();
 }
 
-function withAuthorization(token: string, options?: RequestInit): RequestInit {
+function withAuthorization(token?: string | null, options?: RequestInit): RequestInit {
+  const resolvedToken = token ?? getStoredToken();
+
   return {
     ...options,
     headers: {
       ...(options?.headers || {}),
-      Authorization: `Bearer ${token}`
+      ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {})
     }
   };
 }
@@ -85,65 +93,112 @@ export function getActiveProfessionals(token: string) {
   return request<User[]>("/auth/professionals", withAuthorization(token));
 }
 
-export function getBeds() {
-  return request<Bed[]>("/beds");
+export function getBeds(token?: string | null) {
+  return request<Bed[]>("/beds", withAuthorization(token));
 }
 
-export function getPatients() {
-  return request<Patient[]>("/patients");
+export function getAdminBeds(token: string) {
+  return request<Bed[]>("/beds/admin", withAuthorization(token));
 }
 
-export function getPatient(patientId: number) {
-  return request<Patient>(`/patients/${patientId}`);
-}
-
-export function createPatient(payload: CreatePatientPayload) {
-  return request<Patient>("/patients", {
+export function createAdminBed(token: string, payload: BedFormPayload) {
+  return request<Bed>("/beds/admin", withAuthorization(token, {
     method: "POST",
     body: JSON.stringify(payload)
-  });
+  }));
 }
 
-export function updatePatientClinicalData(patientId: number, payload: UpdatePatientClinicalPayload) {
-  return request<Patient>(`/patients/${patientId}/clinical-data`, {
+export function updateAdminBed(token: string, bedId: number, payload: Partial<BedFormPayload>) {
+  return request<Bed>(`/beds/admin/${bedId}`, withAuthorization(token, {
     method: "PATCH",
     body: JSON.stringify(payload)
-  });
+  }));
 }
 
-export function getPatientLabs(patientId: number) {
-  return request<PatientLab[]>(`/patients/${patientId}/labs`);
+export function getPatients(token?: string | null) {
+  return request<Patient[]>("/patients", withAuthorization(token));
 }
 
-export function createPatientLab(patientId: number, payload: CreatePatientLabPayload) {
-  return request<PatientLab>(`/patients/${patientId}/labs`, {
+export function getPatient(patientId: number, token?: string | null) {
+  return request<Patient>(`/patients/${patientId}`, withAuthorization(token));
+}
+
+export function createPatient(payload: CreatePatientPayload, token?: string | null) {
+  return request<Patient>("/patients", withAuthorization(token, {
     method: "POST",
     body: JSON.stringify(payload)
-  });
+  }));
 }
 
-export function updatePatientLab(patientId: number, labId: number, payload: CreatePatientLabPayload) {
-  return request<PatientLab>(`/patients/${patientId}/labs/${labId}`, {
+export function updatePatientClinicalData(patientId: number, payload: UpdatePatientClinicalPayload, token?: string | null) {
+  return request<Patient>(`/patients/${patientId}/clinical-data`, withAuthorization(token, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  }));
+}
+
+export function getPatientLabs(patientId: number, token?: string | null) {
+  return request<PatientLab[]>(`/patients/${patientId}/labs`, withAuthorization(token));
+}
+
+export function createPatientLab(patientId: number, payload: CreatePatientLabPayload, token?: string | null) {
+  return request<PatientLab>(`/patients/${patientId}/labs`, withAuthorization(token, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }));
+}
+
+export function updatePatientLab(patientId: number, labId: number, payload: CreatePatientLabPayload, token?: string | null) {
+  return request<PatientLab>(`/patients/${patientId}/labs/${labId}`, withAuthorization(token, {
     method: "PUT",
     body: JSON.stringify(payload)
-  });
+  }));
 }
 
-export function deletePatientLab(patientId: number, labId: number) {
-  return request<PatientLab>(`/patients/${patientId}/labs/${labId}`, {
+export function deletePatientLab(patientId: number, labId: number, token?: string | null) {
+  return request<PatientLab>(`/patients/${patientId}/labs/${labId}`, withAuthorization(token, {
     method: "DELETE"
-  });
+  }));
 }
 
-export function dischargePatient(patientId: number, payload: DischargePatientPayload) {
-  return request<Patient>(`/patients/${patientId}/discharge`, {
+export function dischargePatient(patientId: number, payload: DischargePatientPayload, token?: string | null) {
+  return request<Patient>(`/patients/${patientId}/discharge`, withAuthorization(token, {
     method: "POST",
     body: JSON.stringify(payload)
-  });
+  }));
 }
 
-export function getMonthlyDashboard() {
-  return request<DashboardSummary>("/dashboard/monthly");
+export function getMonthlyDashboard(token?: string | null) {
+  return request<DashboardSummary>("/dashboard/monthly", withAuthorization(token));
+}
+
+export function getOrganizationMe(token: string) {
+  return request<Organization>("/organization/me", withAuthorization(token));
+}
+
+export function updateOrganizationMe(token: string, payload: UpdateOrganizationPayload) {
+  return request<Organization>("/organization/me", withAuthorization(token, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  }));
+}
+
+export function getSectors(token: string) {
+  return request<Sector[]>("/sectors", withAuthorization(token));
+}
+
+export function createSector(token: string, payload: SectorFormPayload) {
+  return request<Sector>("/sectors", withAuthorization(token, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }));
+}
+
+export function updateSector(token: string, sectorId: number, payload: Partial<SectorFormPayload>) {
+  return request<Sector>(`/sectors/${sectorId}`, withAuthorization(token, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  }));
 }
 
 export function getAdminUsers(token: string) {

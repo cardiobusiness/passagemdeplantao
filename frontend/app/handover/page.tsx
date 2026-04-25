@@ -1,9 +1,9 @@
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { HandoverPrintPage } from "@/components/HandoverPrintPage";
-import { getBeds, getPatients } from "@/lib/api";
+import { getServerBeds, getServerPatients } from "@/lib/server-api";
 
 export default async function HandoverPage() {
-  const [beds, patients] = await Promise.all([getBeds(), getPatients()]);
+  const [beds, patients] = await Promise.all([getServerBeds(), getServerPatients()]);
 
   return (
     <ProtectedShell routeKey="handover">

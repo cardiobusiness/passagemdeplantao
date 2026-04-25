@@ -3,6 +3,17 @@ import { getRoleLabel as getPermissionRoleLabel } from "./permissions";
 
 const USER_STORAGE_KEY = "ctiUser";
 const TOKEN_STORAGE_KEY = "ctiToken";
+export const TOKEN_COOKIE_KEY = "ctiToken";
+
+function setSessionCookie(token: string) {
+  const secureFlag =
+    typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${TOKEN_COOKIE_KEY}=${encodeURIComponent(token)}; Path=/; Max-Age=5184000; SameSite=Lax${secureFlag}`;
+}
+
+function clearSessionCookie() {
+  document.cookie = `${TOKEN_COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
 
 export function getStoredUser() {
   if (typeof window === "undefined") {
@@ -38,6 +49,7 @@ export function saveSession(user: User, token: string) {
 
   window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
   window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  setSessionCookie(token);
 }
 
 export function clearSession() {
@@ -47,6 +59,7 @@ export function clearSession() {
 
   window.localStorage.removeItem(USER_STORAGE_KEY);
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  clearSessionCookie();
 }
 
 export function getRoleLabel(role: string) {

@@ -5,7 +5,12 @@ import { PatientForm } from "@/components/PatientForm";
 import { PatientHistoryCard } from "@/components/PatientHistoryCard";
 import { PatientLabsModule } from "@/components/PatientLabsModule";
 import { ProtectedShell } from "@/components/ProtectedShell";
-import { getBeds, getMonthlyDashboard, getPatients } from "@/lib/api";
+import {
+  emptyDashboard,
+  getServerBeds,
+  getServerMonthlyDashboard,
+  getServerPatients
+} from "@/lib/server-api";
 import { Bed, DashboardSummary, Patient } from "@/lib/types";
 import { formatVentilatorySupport } from "@/lib/ventilatorySupport";
 import styles from "@/components/dashboard-shell.module.css";
@@ -16,21 +21,12 @@ type Props = {
   };
 };
 
-const emptyDashboard: DashboardSummary = {
-  month: "Sem dados",
-  occupancyRate: 0,
-  activeAlerts: 0,
-  respiratoryEvolutions: 0,
-  motorEvolutions: 0,
-  averageLengthOfStay: 0,
-  averageAdmissionAge: 0,
-  originStats: [],
-  averageAgeByOrigin: [],
-  examsRegistered: 0
-};
-
 async function loadDashboardData() {
-  const results = await Promise.allSettled([getBeds(), getMonthlyDashboard(), getPatients()]);
+  const results = await Promise.allSettled([
+    getServerBeds(),
+    getServerMonthlyDashboard(),
+    getServerPatients()
+  ]);
   const [bedsResult, dashboardResult, patientsResult] = results;
   const errors: string[] = [];
 
@@ -114,7 +110,7 @@ export default async function DashboardPage({ searchParams }: Props) {
           <article className={`${styles.summaryCard} card`}>
             <span>Taxa de ocupacao</span>
             <strong>{dashboard.occupancyRate}%</strong>
-            <small>40 leitos monitorados</small>
+            <small>{dashboard.metrics?.totalBeds ?? beds.length} leitos monitorados</small>
           </article>
           <article className={`${styles.summaryCard} card`}>
             <span>Alertas ativos</span>

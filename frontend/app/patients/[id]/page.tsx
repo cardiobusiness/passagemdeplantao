@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PatientClinicalForm } from "@/components/PatientClinicalForm";
 import { ProtectedShell } from "@/components/ProtectedShell";
-import { getPatient } from "@/lib/api";
+import { getServerPatient } from "@/lib/server-api";
 import { Patient } from "@/lib/types";
 import { formatVentilatorySupport, isMechanicalVentilationType } from "@/lib/ventilatorySupport";
 import styles from "./patient-detail.module.css";
@@ -113,7 +113,7 @@ export default async function PatientDetailPage({ params }: Props) {
   let patient: Patient;
 
   try {
-    patient = await getPatient(patientId);
+    patient = await getServerPatient(patientId);
   } catch {
     notFound();
   }

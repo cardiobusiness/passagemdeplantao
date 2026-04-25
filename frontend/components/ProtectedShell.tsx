@@ -31,6 +31,21 @@ function isActivePath(pathname: string, matchers: string[]) {
   return matchers.some((matcher) => pathname === matcher || pathname.startsWith(`${matcher}/`));
 }
 
+function getOrganizationSummary(user: User) {
+  const organization = user.organization;
+
+  if (!organization) {
+    return "Organizacao nao identificada";
+  }
+
+  if (organization.status === "trial") {
+    const days = organization.trialDaysRemaining;
+    return `${organization.name} - Trial: ${days} ${days === 1 ? "dia restante" : "dias restantes"}`;
+  }
+
+  return `${organization.name} - Plano ${organization.status}`;
+}
+
 export function ProtectedShell({ children, routeKey }: ProtectedShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -133,6 +148,10 @@ export function ProtectedShell({ children, routeKey }: ProtectedShellProps) {
               <span>
                 {user ? `${getRoleLabel(user.role)} | ${user.jobTitle}` : ""}
               </span>
+              {user ? <span className={styles.organizationLine}>{getOrganizationSummary(user)}</span> : null}
+              {user?.organization && !user.organization.isAllowed ? (
+                <span className={styles.planWarning}>Trial vencido: criacao e edicao bloqueadas.</span>
+              ) : null}
             </div>
             <button type="button" className={styles.logoutButton} onClick={handleLogout} disabled={loggingOut}>
               {loggingOut ? "Saindo..." : "Logout"}

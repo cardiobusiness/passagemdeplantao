@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { getRoleLabel, getStoredToken } from "@/lib/auth";
 import { UpdateUserPayload, User, UserFormPayload } from "@/lib/types";
+import { AdminNav } from "./AdminNav";
 import styles from "./admin-users-page.module.css";
 
 const initialFormState: UserFormPayload = {
@@ -185,6 +186,8 @@ export function AdminUsersPage() {
           <p>Passagem de Plantao | Gestao Inteligente de CTI para cadastro e controle da equipe.</p>
         </div>
       </header>
+
+      <AdminNav />
 
       <div className={styles.grid}>
         <section className={`${styles.panel} card`}>

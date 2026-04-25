@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ProtectedShell } from "@/components/ProtectedShell";
-import { getPatients } from "@/lib/api";
+import { getServerPatients } from "@/lib/server-api";
 import styles from "./patients-page.module.css";
 
 export default async function PatientsPage() {
-  const patients = await getPatients();
+  const patients = await getServerPatients();
   const admittedPatients = patients.filter((patient) => patient.bedId !== null);
   const dischargedPatients = patients.filter((patient) => patient.bedId === null).slice(0, 6);
 

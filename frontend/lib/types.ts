@@ -1,16 +1,34 @@
 export type User = {
   id: number;
+  organizationId: number;
   name: string;
   email: string;
   login: string;
   jobTitle: string;
   role: string;
   isActive: boolean;
+  organization: Organization | null;
+};
+
+export type Organization = {
+  id: number;
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  plan: string;
+  status: string;
+  trialStartsAt: string;
+  trialEndsAt: string;
+  trialDaysRemaining: number;
+  isActive: boolean;
+  isAllowed: boolean;
 };
 
 export type LoginResponse = {
   token: string;
   user: User;
+  organization: Organization | null;
 };
 
 export type PatientLab = {
@@ -238,13 +256,44 @@ export type DischargePatientPayload = {
 
 export type Bed = {
   id: number;
+  organizationId: number;
+  sectorId: number | null;
   code: string;
   sector: string;
   occupied: boolean;
   status: string;
+  isActive: boolean;
   patientId: number | null;
   alertCount: number;
   patient: Patient | null;
+};
+
+export type Sector = {
+  id: number;
+  organizationId: number;
+  name: string;
+  isActive: boolean;
+  bedCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateOrganizationPayload = {
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+};
+
+export type SectorFormPayload = {
+  name: string;
+  isActive?: boolean;
+};
+
+export type BedFormPayload = {
+  code: string;
+  sectorId: number;
+  isActive?: boolean;
 };
 
 export type DashboardSummary = {
@@ -267,6 +316,12 @@ export type DashboardSummary = {
     averageAge: number;
   }>;
   examsRegistered: number;
+  metrics?: {
+    totalBeds: number;
+    occupiedBeds: number;
+    totalPatients: number;
+    admissionsThisMonth: number;
+  };
 };
 
 export type UserFormPayload = {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PatientForm } from "@/components/PatientForm";
 import { ProtectedShell } from "@/components/ProtectedShell";
-import { getBeds } from "@/lib/api";
+import { getServerBeds } from "@/lib/server-api";
 import styles from "@/components/dashboard-shell.module.css";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export default async function NewPatientPage({ searchParams }: Props) {
-  const beds = await getBeds();
+  const beds = await getServerBeds();
   const availableBeds = beds.filter((bed) => !bed.occupied).map((bed) => ({ id: bed.id, code: bed.code }));
   const preferredBedId = Number(searchParams?.bedId);
   const selectedBedId =
