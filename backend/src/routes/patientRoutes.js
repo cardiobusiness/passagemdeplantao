@@ -1,19 +1,24 @@
 import { Router } from "express";
+import { requireAuth, requireOrganizationWriteAccess } from "../middleware/authMiddleware.js";
 import {
   createPatient,
   createPatientLab,
+  deletePatientLab,
   dischargePatient,
   getPatientById,
   getPatientLabs,
   getPatients,
+  updatePatientLab,
   updatePatientClinicalData
 } from "../services/patientService.js";
 
 const router = Router();
 
-router.get("/", async (_req, res) => {
+router.use(requireAuth);
+
+router.get("/", async (req, res) => {
   try {
-    const patients = await getPatients();
+    const patients = await getPatients(req.user.organizationId);
     res.json(patients);
   } catch (error) {
     res.status(500).json({
@@ -25,7 +30,7 @@ router.get("/", async (_req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const patient = await getPatientById(req.params.id);
+    const patient = await getPatientById(req.params.id, req.user.organizationId);
     return res.json(patient);
   } catch (error) {
     const statusCode = error.statusCode || 400;
@@ -33,9 +38,9 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireOrganizationWriteAccess, async (req, res) => {
   try {
-    const patient = await createPatient(req.body);
+    const patient = await createPatient(req.body, req.user.organizationId);
     return res.status(201).json(patient);
   } catch (error) {
     return res.status(400).json({ message: error.message });
@@ -44,7 +49,7 @@ router.post("/", async (req, res) => {
 
 router.get("/:id/labs", async (req, res) => {
   try {
-    const labs = await getPatientLabs(req.params.id);
+    const labs = await getPatientLabs(req.params.id, req.user.organizationId);
     return res.json(labs);
   } catch (error) {
     const statusCode = error.statusCode || 400;
@@ -52,9 +57,9 @@ router.get("/:id/labs", async (req, res) => {
   }
 });
 
-router.post("/:id/labs", async (req, res) => {
+router.post("/:id/labs", requireOrganizationWriteAccess, async (req, res) => {
   try {
-    const lab = await createPatientLab(req.params.id, req.body);
+    const lab = await createPatientLab(req.params.id, req.body, req.user.organizationId);
     return res.status(201).json(lab);
   } catch (error) {
     const statusCode = error.statusCode || 400;
@@ -62,19 +67,39 @@ router.post("/:id/labs", async (req, res) => {
   }
 });
 
-router.post("/:id/discharge", async (req, res) => {
+router.put("/:id/labs/:labId", requireOrganizationWriteAccess, async (req, res) => {
+  try {
+    const lab = await updatePatientLab(req.params.id, req.params.labId, req.body, req.user.organizationId);
+    return res.json(lab);
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({ message: error.message });
+  }
+});
+
+router.delete("/:id/labs/:labId", requireOrganizationWriteAccess, async (req, res) => {
+  try {
+    const lab = await deletePatientLab(req.params.id, req.params.labId, req.user.organizationId);
+    return res.json(lab);
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({ message: error.message });
+  }
+});
+
+router.post("/:id/discharge", requireOrganizationWriteAccess, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await dischargePatient(id, req.body);
+    const result = await dischargePatient(id, req.body, req.user.organizationId);
     return res.json(result);
   } catch (error) {
     return res.status(400).json({ message: error.message });
   }
 });
 
-router.patch("/:id/clinical-data", async (req, res) => {
+router.patch("/:id/clinical-data", requireOrganizationWriteAccess, async (req, res) => {
   try {
-    const result = await updatePatientClinicalData(req.params.id, req.body);
+    const result = await updatePatientClinicalData(req.params.id, req.body, req.user.organizationId);
     return res.json(result);
   } catch (error) {
     const statusCode = error.statusCode || 400;

@@ -1,49 +1,107 @@
 import { prisma } from "../middleware/prismaMiddleware.js";
 import { mapBedRecord } from "../utils/patientMapper.js";
 
-export async function getBeds() {
-  const beds = await prisma.bed.findMany({
-    include: {
-      patient: {
-        include: {
-          beds: {
-            where: { occupied: true },
-            take: 1,
-            orderBy: { id: "asc" }
-          },
-          admissionMetrics: true,
-          labs: { orderBy: { date: "desc" } },
-          imaging: { orderBy: { date: "desc" } },
-          evolutions: { orderBy: { date: "desc" } },
-          alerts: { where: { isActive: true } }
-        }
-      }
+function getPatientInclude(organizationId) {
+  return {
+    beds: {
+      where: {
+        organizationId,
+        occupied: true,
+        isActive: true,
+        OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+      },
+      take: 1,
+      orderBy: { id: "asc" }
     },
-    orderBy: { code: "asc" }
+    admissionMetrics: true,
+    labs: { orderBy: { date: "desc" } },
+    imaging: { orderBy: { date: "desc" } },
+    evolutions: { orderBy: { date: "desc" } },
+    alerts: { where: { isActive: true } }
+  };
+}
+
+function getBedInclude(organizationId) {
+  return {
+    sectorRef: true,
+    patient: {
+      include: getPatientInclude(organizationId)
+    }
+  };
+}
+
+function normalizeCode(code) {
+  const normalizedCode = String(code ?? "").trim().toUpperCase();
+
+  if (!normalizedCode) {
+    throw new Error("Codigo do leito nao informado.");
+  }
+
+  return normalizedCode;
+}
+
+async function getSectorForBed(sectorId, organizationId) {
+  const numericSectorId = Number(sectorId);
+
+  if (!Number.isInteger(numericSectorId) || numericSectorId <= 0) {
+    throw new Error("Selecione um setor valido.");
+  }
+
+  const sector = await prisma.sector.findFirst({
+    where: {
+      id: numericSectorId,
+      organizationId
+    }
+  });
+
+  if (!sector) {
+    const error = new Error("Setor nao encontrado nesta organizacao.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!sector.isActive) {
+    throw new Error("Selecione um setor ativo para o leito.");
+  }
+
+  return sector;
+}
+
+export async function getBeds(organizationId) {
+  const beds = await prisma.bed.findMany({
+    where: {
+      organizationId,
+      isActive: true,
+      OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+    },
+    include: getBedInclude(organizationId),
+    orderBy: [{ sector: "asc" }, { code: "asc" }]
   });
 
   return beds.map(mapBedRecord);
 }
 
-export async function getBedById(bedId) {
-  const bed = await prisma.bed.findUnique({
-    where: { id: Number(bedId) },
-    include: {
-      patient: {
-        include: {
-          beds: {
-            where: { occupied: true },
-            take: 1,
-            orderBy: { id: "asc" }
-          },
-          admissionMetrics: true,
-          labs: { orderBy: { date: "desc" } },
-          imaging: { orderBy: { date: "desc" } },
-          evolutions: { orderBy: { date: "desc" } },
-          alerts: { where: { isActive: true } }
-        }
-      }
-    }
+export async function getAdminBeds(organizationId) {
+  const beds = await prisma.bed.findMany({
+    where: {
+      organizationId
+    },
+    include: getBedInclude(organizationId),
+    orderBy: [{ sector: "asc" }, { code: "asc" }]
+  });
+
+  return beds.map(mapBedRecord);
+}
+
+export async function getBedById(bedId, organizationId) {
+  const bed = await prisma.bed.findFirst({
+    where: {
+      id: Number(bedId),
+      organizationId,
+      isActive: true,
+      OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+    },
+    include: getBedInclude(organizationId)
   });
 
   if (!bed) {
@@ -55,29 +113,49 @@ export async function getBedById(bedId) {
   return mapBedRecord(bed);
 }
 
-export async function createBed(payload) {
-  const code = String(payload?.code ?? "").trim().toUpperCase();
-  const sector = String(payload?.sector ?? "CTI 1").trim();
+export async function createBed(payload, organizationId) {
+  const code = normalizeCode(payload?.code);
+  const sector = await getSectorForBed(payload?.sectorId, organizationId);
 
-  if (!code) {
-    throw new Error("Codigo do leito nao informado.");
+  const existingBed = await prisma.bed.findFirst({
+    where: {
+      organizationId,
+      code
+    }
+  });
+
+  if (existingBed) {
+    throw new Error("Ja existe um leito com este codigo nesta organizacao.");
   }
 
   const bed = await prisma.bed.create({
     data: {
+      organizationId,
+      sectorId: sector.id,
       code,
-      sector,
+      sector: sector.name,
       occupied: false,
-      status: "Vago"
-    }
+      status: "Vago",
+      isActive: typeof payload?.isActive === "boolean" ? payload.isActive : true
+    },
+    include: getBedInclude(organizationId)
   });
 
-  return mapBedRecord({ ...bed, patient: null });
+  return mapBedRecord(bed);
 }
 
-export async function updateBed(bedId, payload) {
-  const bed = await prisma.bed.findUnique({
-    where: { id: Number(bedId) }
+export async function updateBed(bedId, payload, organizationId) {
+  const numericBedId = Number(bedId);
+
+  if (!Number.isInteger(numericBedId) || numericBedId <= 0) {
+    throw new Error("Leito invalido.");
+  }
+
+  const bed = await prisma.bed.findFirst({
+    where: {
+      id: numericBedId,
+      organizationId
+    }
   });
 
   if (!bed) {
@@ -86,29 +164,63 @@ export async function updateBed(bedId, payload) {
     throw error;
   }
 
-  const updated = await prisma.bed.update({
-    where: { id: Number(bedId) },
-    data: {
-      ...(payload?.occupied !== undefined && { occupied: Boolean(payload.occupied) }),
-      ...(payload?.status && { status: String(payload.status) }),
-      ...(payload?.patientId !== undefined && { patientId: payload.patientId ? Number(payload.patientId) : null })
-    },
-    include: {
-      patient: {
-        include: {
-          beds: {
-            where: { occupied: true },
-            take: 1,
-            orderBy: { id: "asc" }
-          },
-          admissionMetrics: true,
-          labs: { orderBy: { date: "desc" } },
-          imaging: { orderBy: { date: "desc" } },
-          evolutions: { orderBy: { date: "desc" } },
-          alerts: { where: { isActive: true } }
+  const nextData = {};
+
+  if (payload?.code !== undefined) {
+    const code = normalizeCode(payload.code);
+
+    if (code !== bed.code) {
+      const existingBed = await prisma.bed.findFirst({
+        where: {
+          organizationId,
+          code,
+          NOT: { id: numericBedId }
         }
+      });
+
+      if (existingBed) {
+        throw new Error("Ja existe um leito com este codigo nesta organizacao.");
       }
     }
+
+    nextData.code = code;
+  }
+
+  if (payload?.sectorId !== undefined) {
+    const sector = await getSectorForBed(payload.sectorId, organizationId);
+    nextData.sectorId = sector.id;
+    nextData.sector = sector.name;
+  }
+
+  if (payload?.isActive === false && bed.occupied) {
+    throw new Error("Nao e possivel desativar um leito ocupado.");
+  }
+
+  if (payload?.patientId) {
+    const patient = await prisma.patient.findFirst({
+      where: {
+        id: Number(payload.patientId),
+        organizationId
+      }
+    });
+
+    if (!patient) {
+      const error = new Error("Paciente nao encontrado nesta organizacao.");
+      error.statusCode = 404;
+      throw error;
+    }
+  }
+
+  const updated = await prisma.bed.update({
+    where: { id: numericBedId },
+    data: {
+      ...nextData,
+      ...(payload?.occupied !== undefined && { occupied: Boolean(payload.occupied) }),
+      ...(payload?.status && { status: String(payload.status) }),
+      ...(typeof payload?.isActive === "boolean" && { isActive: payload.isActive }),
+      ...(payload?.patientId !== undefined && { patientId: payload.patientId ? Number(payload.patientId) : null })
+    },
+    include: getBedInclude(organizationId)
   });
 
   return mapBedRecord(updated);

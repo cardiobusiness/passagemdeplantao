@@ -1,10 +1,15 @@
 import { prisma } from "../middleware/prismaMiddleware.js";
 import { mapPatientRecord } from "../utils/patientMapper.js";
 
-function getPatientInclude() {
+function getPatientInclude(organizationId) {
   return {
     beds: {
-      where: { occupied: true },
+      where: {
+        organizationId,
+        occupied: true,
+        isActive: true,
+        OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+      },
       take: 1,
       orderBy: { id: "asc" }
     },
@@ -267,19 +272,44 @@ function normalizeFilterChanges(payload, existingFilterChanges = {}) {
   });
 }
 
-export async function getPatients() {
+function mapLabRecord(lab) {
+  return {
+    id: lab.id,
+    date: lab.date.toISOString().slice(0, 10),
+    hb: lab.hb ?? "",
+    ht: lab.ht ?? "",
+    leuco: lab.leuco ?? "",
+    bt: lab.bt ?? "",
+    plq: lab.plq ?? "",
+    ur: lab.ur ?? "",
+    cr: lab.cr ?? "",
+    pcr: lab.pcr ?? "",
+    na: lab.na ?? "",
+    k: lab.k ?? "",
+    ca: lab.ca ?? "",
+    ac: lab.lactate ?? "",
+    extraExamName: lab.extraExamName ?? "",
+    extraExamValue: lab.extraExamValue ?? ""
+  };
+}
+
+export async function getPatients(organizationId) {
   const patients = await prisma.patient.findMany({
-    include: getPatientInclude(),
+    where: { organizationId },
+    include: getPatientInclude(organizationId),
     orderBy: { admissionDate: "desc" }
   });
 
   return patients.map(mapPatientRecord);
 }
 
-export async function getPatientById(patientId) {
-  const patient = await prisma.patient.findUnique({
-    where: { id: Number(patientId) },
-    include: getPatientInclude()
+export async function getPatientById(patientId, organizationId) {
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: Number(patientId),
+      organizationId
+    },
+    include: getPatientInclude(organizationId)
   });
 
   if (!patient) {
@@ -291,7 +321,7 @@ export async function getPatientById(patientId) {
   return mapPatientRecord(patient);
 }
 
-export async function createPatient(payload) {
+export async function createPatient(payload, organizationId) {
   const name = normalizeString(payload?.name);
   const recordNumber = normalizeString(payload?.recordNumber);
   const age = Number(payload?.age ?? 0);
@@ -332,16 +362,24 @@ export async function createPatient(payload) {
     throw new Error("Leito nao informado.");
   }
 
-  const existingPatient = await prisma.patient.findUnique({
-    where: { recordNumber }
+  const existingPatient = await prisma.patient.findFirst({
+    where: {
+      organizationId,
+      recordNumber
+    }
   });
 
   if (existingPatient) {
     throw new Error("Ja existe um paciente com este numero de registro.");
   }
 
-  const bed = await prisma.bed.findUnique({
-    where: { id: bedId }
+  const bed = await prisma.bed.findFirst({
+    where: {
+      id: bedId,
+      organizationId,
+      isActive: true,
+      OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+    }
   });
 
   if (!bed) {
@@ -355,6 +393,7 @@ export async function createPatient(payload) {
   const patientId = await prisma.$transaction(async (tx) => {
     const createdPatient = await tx.patient.create({
       data: {
+        organizationId,
         name,
         recordNumber,
         age,
@@ -414,7 +453,7 @@ export async function createPatient(payload) {
 
   const patient = await prisma.patient.findUnique({
     where: { id: patientId },
-    include: getPatientInclude()
+    include: getPatientInclude(organizationId)
   });
 
   if (!patient) {
@@ -424,14 +463,22 @@ export async function createPatient(payload) {
   return mapPatientRecord(patient);
 }
 
-export async function updatePatientClinicalData(patientId, payload) {
+export async function updatePatientClinicalData(patientId, payload, organizationId) {
   const numericPatientId = Number(patientId);
-  const patient = await prisma.patient.findUnique({
-    where: { id: numericPatientId },
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: numericPatientId,
+      organizationId
+    },
     include: {
       admissionMetrics: true,
       beds: {
-        where: { occupied: true },
+        where: {
+          organizationId,
+          occupied: true,
+          isActive: true,
+          OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+        },
         take: 1
       }
     }
@@ -555,7 +602,7 @@ export async function updatePatientClinicalData(patientId, payload) {
 
   const updatedPatient = await prisma.patient.findUnique({
     where: { id: numericPatientId },
-    include: getPatientInclude()
+    include: getPatientInclude(organizationId)
   });
 
   if (!updatedPatient) {
@@ -565,11 +612,14 @@ export async function updatePatientClinicalData(patientId, payload) {
   return mapPatientRecord(updatedPatient);
 }
 
-export async function dischargePatient(patientId, payload) {
+export async function dischargePatient(patientId, payload, organizationId) {
   const bed = await prisma.bed.findFirst({
     where: {
       patientId: Number(patientId),
-      occupied: true
+      organizationId,
+      occupied: true,
+      isActive: true,
+      OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
     }
   });
 
@@ -579,8 +629,11 @@ export async function dischargePatient(patientId, payload) {
     throw error;
   }
 
-  const patient = await prisma.patient.findUnique({
-    where: { id: Number(patientId) }
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: Number(patientId),
+      organizationId
+    }
   });
 
   if (!patient) {
@@ -651,7 +704,7 @@ export async function dischargePatient(patientId, payload) {
 
   const updatedPatient = await prisma.patient.findUnique({
     where: { id: Number(patientId) },
-    include: getPatientInclude()
+    include: getPatientInclude(organizationId)
   });
 
   if (!updatedPatient) {
@@ -661,9 +714,12 @@ export async function dischargePatient(patientId, payload) {
   return mapPatientRecord(updatedPatient);
 }
 
-export async function getPatientLabs(patientId) {
-  const patient = await prisma.patient.findUnique({
-    where: { id: Number(patientId) }
+export async function getPatientLabs(patientId, organizationId) {
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: Number(patientId),
+      organizationId
+    }
   });
 
   if (!patient) {
@@ -677,29 +733,15 @@ export async function getPatientLabs(patientId) {
     orderBy: { date: "desc" }
   });
 
-  return labs.map((lab) => ({
-    id: lab.id,
-    date: lab.date.toISOString().slice(0, 10),
-    hb: lab.hb ?? "",
-    ht: lab.ht ?? "",
-    leuco: lab.leuco ?? "",
-    bt: lab.bt ?? "",
-    plq: lab.plq ?? "",
-    ur: lab.ur ?? "",
-    cr: lab.cr ?? "",
-    pcr: lab.pcr ?? "",
-    na: lab.na ?? "",
-    k: lab.k ?? "",
-    ca: lab.ca ?? "",
-    ac: lab.lactate ?? "",
-    extraExamName: lab.extraExamName ?? "",
-    extraExamValue: lab.extraExamValue ?? ""
-  }));
+  return labs.map(mapLabRecord);
 }
 
-export async function createPatientLab(patientId, payload) {
-  const patient = await prisma.patient.findUnique({
-    where: { id: Number(patientId) }
+export async function createPatientLab(patientId, payload, organizationId) {
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: Number(patientId),
+      organizationId
+    }
   });
 
   if (!patient) {
@@ -729,22 +771,90 @@ export async function createPatientLab(patientId, payload) {
     }
   });
 
-  return {
-    id: lab.id,
-    date: lab.date.toISOString().slice(0, 10),
-    hb: lab.hb ?? "",
-    ht: lab.ht ?? "",
-    leuco: lab.leuco ?? "",
-    bt: lab.bt ?? "",
-    plq: lab.plq ?? "",
-    ur: lab.ur ?? "",
-    cr: lab.cr ?? "",
-    pcr: lab.pcr ?? "",
-    na: lab.na ?? "",
-    k: lab.k ?? "",
-    ca: lab.ca ?? "",
-    ac: lab.lactate ?? "",
-    extraExamName: lab.extraExamName ?? "",
-    extraExamValue: lab.extraExamValue ?? ""
-  };
+  return mapLabRecord(lab);
+}
+
+export async function updatePatientLab(patientId, labId, payload, organizationId) {
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: Number(patientId),
+      organizationId
+    }
+  });
+
+  if (!patient) {
+    const error = new Error("Paciente nao encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const lab = await prisma.lab.findFirst({
+    where: {
+      id: Number(labId),
+      patientId: Number(patientId)
+    }
+  });
+
+  if (!lab) {
+    const error = new Error("Exame laboratorial nao encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const updatedLab = await prisma.lab.update({
+    where: { id: Number(labId) },
+    data: {
+      date: new Date(payload?.date ?? lab.date),
+      hb: payload?.hb || null,
+      ht: payload?.ht || null,
+      leuco: payload?.leuco || null,
+      bt: payload?.bt || null,
+      plq: payload?.plq || null,
+      ur: payload?.ur || null,
+      cr: payload?.cr || null,
+      pcr: payload?.pcr || null,
+      na: payload?.na || null,
+      k: payload?.k || null,
+      ca: payload?.ca || null,
+      lactate: payload?.ac || payload?.lactate || null,
+      extraExamName: payload?.extraExamName || null,
+      extraExamValue: payload?.extraExamValue || null
+    }
+  });
+
+  return mapLabRecord(updatedLab);
+}
+
+export async function deletePatientLab(patientId, labId, organizationId) {
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: Number(patientId),
+      organizationId
+    }
+  });
+
+  if (!patient) {
+    const error = new Error("Paciente nao encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const lab = await prisma.lab.findFirst({
+    where: {
+      id: Number(labId),
+      patientId: Number(patientId)
+    }
+  });
+
+  if (!lab) {
+    const error = new Error("Exame laboratorial nao encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  await prisma.lab.delete({
+    where: { id: Number(labId) }
+  });
+
+  return mapLabRecord(lab);
 }

@@ -9,7 +9,11 @@ yarn.lock
 .env.*.local
 
 # Prisma
-prisma/migrations/
+prisma/migrations/*
+!prisma/migrations/20260425130000_add_organizations/
+!prisma/migrations/20260425130000_add_organizations/migration.sql
+!prisma/migrations/20260425143000_add_sectors_and_bed_admin/
+!prisma/migrations/20260425143000_add_sectors_and_bed_admin/migration.sql
 
 # IDE
 .vscode/

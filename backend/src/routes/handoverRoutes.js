@@ -1,18 +1,22 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { requireAuth, requireOrganizationWriteAccess } from "../middleware/authMiddleware.js";
 import { createHandover, getHandovers, getHandoverById } from "../services/handoverService.js";
 
 const router = Router();
 
 router.use(requireAuth);
 
-router.get("/", (_req, res) => {
-  return res.json(getHandovers());
+router.get("/", async (req, res) => {
+  try {
+    return res.json(await getHandovers(req.user.organizationId));
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const handover = getHandoverById(id);
+  const handover = await getHandoverById(id, req.user.organizationId);
 
   if (!handover) {
     return res.status(404).json({ message: "Passagem de plantão não encontrada." });
@@ -21,7 +25,7 @@ router.get("/:id", (req, res) => {
   return res.json(handover);
 });
 
-router.post("/", (req, res) => {
+router.post("/", requireOrganizationWriteAccess, async (req, res) => {
   const { professionalId, bedIds } = req.body;
 
   if (!professionalId || !Array.isArray(bedIds) || bedIds.length === 0) {
@@ -29,7 +33,7 @@ router.post("/", (req, res) => {
   }
 
   try {
-    const handover = createHandover(professionalId, bedIds);
+    const handover = await createHandover(req.user.organizationId, professionalId, bedIds);
     return res.status(201).json(handover);
   } catch (error) {
     return res.status(500).json({ message: error.message });

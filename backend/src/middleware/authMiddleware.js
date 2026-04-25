@@ -1,4 +1,5 @@
 import { getUserByToken } from "../services/userService.js";
+import { isOrganizationAllowed } from "../services/organizationService.js";
 
 function getBearerToken(req) {
   const authorization = req.headers.authorization ?? "";
@@ -39,6 +40,16 @@ export function requireAdministrator(req, res, next) {
 export function requireAdminManagementAccess(req, res, next) {
   if (!req.user || !["administrator", "routine"].includes(req.user.role)) {
     return res.status(403).json({ message: "Somente administradores e rotina podem acessar esta area." });
+  }
+
+  next();
+}
+
+export function requireOrganizationWriteAccess(req, res, next) {
+  if (!req.user?.organization || !isOrganizationAllowed(req.user.organization)) {
+    return res.status(402).json({
+      message: "Trial expirado ou organizacao inativa. A visualizacao permanece disponivel, mas criacao e edicao estao bloqueadas."
+    });
   }
 
   next();

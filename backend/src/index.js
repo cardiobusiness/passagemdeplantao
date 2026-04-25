@@ -8,7 +8,9 @@ import authRoutes from "./routes/authRoutes.js";
 import bedRoutes from "./routes/bedRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import handoverRoutes from "./routes/handoverRoutes.js";
+import organizationRoutes from "./routes/organizationRoutes.js";
 import patientRoutes from "./routes/patientRoutes.js";
+import sectorRoutes from "./routes/sectorRoutes.js";
 import { checkDatabaseConnection } from "./config/database.js";
 
 dotenv.config();
@@ -37,6 +39,8 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/beds", bedRoutes);
+app.use("/api/organization", organizationRoutes);
+app.use("/api/sectors", sectorRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/handovers", handoverRoutes);

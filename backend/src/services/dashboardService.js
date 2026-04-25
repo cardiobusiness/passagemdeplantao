@@ -8,25 +8,45 @@ const originLabels = {
   nao_informado: "Nao informado"
 };
 
-export async function getMonthlyDashboard() {
+export async function getMonthlyDashboard(organizationId) {
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   const [totalBeds, occupiedBeds, totalPatients, admissionsThisMonth, activeAlerts, patientOrigins] = await Promise.all([
-    prisma.bed.count(),
-    prisma.bed.count({ where: { occupied: true } }),
-    prisma.patient.count(),
+    prisma.bed.count({
+      where: {
+        organizationId,
+        isActive: true,
+        OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+      }
+    }),
+    prisma.bed.count({
+      where: {
+        organizationId,
+        occupied: true,
+        isActive: true,
+        OR: [{ sectorId: null }, { sectorRef: { isActive: true } }]
+      }
+    }),
+    prisma.patient.count({ where: { organizationId } }),
     prisma.patient.count({
       where: {
+        organizationId,
         admissionDate: {
           gte: firstDayOfMonth,
           lte: lastDayOfMonth
         }
       }
     }),
-    prisma.alert.count({ where: { isActive: true } }),
+    prisma.alert.count({
+      where: {
+        isActive: true,
+        patient: { organizationId }
+      }
+    }),
     prisma.patient.findMany({
+      where: { organizationId },
       select: {
         age: true,
         origin: true
@@ -36,6 +56,7 @@ export async function getMonthlyDashboard() {
 
   const respiratoryEvolutions = await prisma.evolution.count({
     where: {
+      patient: { organizationId },
       type: "respiratoria",
       date: {
         gte: firstDayOfMonth,
@@ -46,6 +67,7 @@ export async function getMonthlyDashboard() {
 
   const motorEvolutions = await prisma.evolution.count({
     where: {
+      patient: { organizationId },
       type: "motora",
       date: {
         gte: firstDayOfMonth,
@@ -56,6 +78,7 @@ export async function getMonthlyDashboard() {
 
   const labs = await prisma.lab.count({
     where: {
+      patient: { organizationId },
       date: {
         gte: firstDayOfMonth,
         lte: lastDayOfMonth
@@ -68,6 +91,9 @@ export async function getMonthlyDashboard() {
     totalPatients > 0
       ? Math.round(
           (await prisma.admissionMetrics.aggregate({
+            where: {
+              patient: { organizationId }
+            },
             _avg: { daysInICU: true }
           }))._avg.daysInICU || 0
         )

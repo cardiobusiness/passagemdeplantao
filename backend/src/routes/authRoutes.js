@@ -28,9 +28,9 @@ router.get("/me", requireAuth, (req, res) => {
   return res.json(req.user);
 });
 
-router.get("/professionals", requireAuth, async (_req, res) => {
+router.get("/professionals", requireAuth, async (req, res) => {
   try {
-    const professionals = await listActiveProfessionals();
+    const professionals = await listActiveProfessionals(req.user.organizationId);
     return res.json(professionals);
   } catch (error) {
     return res.status(500).json({ message: error.message });

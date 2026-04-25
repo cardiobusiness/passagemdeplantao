@@ -1,11 +1,14 @@
 import { Router } from "express";
+import { requireAuth } from "../middleware/authMiddleware.js";
 import { getMonthlyDashboard } from "../services/dashboardService.js";
 
 const router = Router();
 
-router.get("/monthly", async (_req, res) => {
+router.use(requireAuth);
+
+router.get("/monthly", async (req, res) => {
   try {
-    const dashboard = await getMonthlyDashboard();
+    const dashboard = await getMonthlyDashboard(req.user.organizationId);
     return res.json(dashboard);
   } catch (error) {
     return res.status(500).json({
