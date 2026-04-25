@@ -24,6 +24,7 @@ import {
 } from "recharts";
 
 import { Bed, DashboardSummary, Patient } from "@/lib/types";
+import { formatVentilatorySupport, getVentilatorySupportLabel, isMechanicalVentilationType, normalizeVentilatorySupportType } from "@/lib/ventilatorySupport";
 
 import styles from "./AnalyticsDashboard.module.css";
 
@@ -55,6 +56,7 @@ const PATIENT_FILTER_OPTIONS: Array<{ label: string; value: PatientFilter }> = [
 
 const SUPPORT_COLORS = ["#1d4ed8", "#0f766e", "#d97706", "#9333ea", "#dc2626", "#64748b"];
 const ALERT_COLORS = ["#dc2626", "#f59e0b", "#2563eb", "#0f766e", "#7c3aed"];
+const ORIGIN_COLORS = ["#0f766e", "#d97706", "#2563eb", "#9333ea", "#64748b"];
 
 function parseDate(value: string | null | undefined) {
   if (!value) {
@@ -126,11 +128,11 @@ function getPeriodLabel(period: PeriodOption) {
 }
 
 function isMechanicalVentilationPatient(patient: Patient) {
-  return ["VMI", "VNI"].includes(patient.ventilatorySupport);
+  return isMechanicalVentilationType(patient.ventilatorySupport.type);
 }
 
 function isRecentExtubationPatient(patient: Patient) {
-  return patient.stayMetrics.extubationHours !== null && patient.stayMetrics.extubationHours <= 72;
+  return patient.stayMetrics?.extubationHours !== null && (patient.stayMetrics?.extubationHours ?? 0) <= 72;
 }
 
 function matchesPatientFilter(patient: Patient, filter: PatientFilter) {
@@ -143,7 +145,7 @@ function matchesPatientFilter(patient: Patient, filter: PatientFilter) {
   }
 
   if (filter === "tracheostomy") {
-    return patient.ventilatorySupport === "Traqueostomia";
+    return normalizeVentilatorySupportType(patient.ventilatorySupport.type) === "traqueostomia";
   }
 
   if (filter === "recent-extubation") {
@@ -151,7 +153,7 @@ function matchesPatientFilter(patient: Patient, filter: PatientFilter) {
   }
 
   if (filter === "non-invasive") {
-    return !["VMI", "Traqueostomia"].includes(patient.ventilatorySupport);
+    return !["vmi", "traqueostomia"].includes(normalizeVentilatorySupportType(patient.ventilatorySupport.type));
   }
 
   return true;
@@ -204,11 +206,14 @@ function formatAlertCategory(alert: string) {
   return "Outros";
 }
 
+function getPatientBedLabel(patient: Patient) {
+  return patient.bedCode ?? patient.lastBedCode ?? "Sem leito ativo";
+}
+
 export default function AnalyticsDashboard({ beds, patients, dashboard }: AnalyticsDashboardProps) {
   const [period, setPeriod] = useState<PeriodOption>(7);
   const [patientFilter, setPatientFilter] = useState<PatientFilter>("all");
 
-  const activeBeds = beds.filter((bed) => bed.occupied);
   const activePatients = patients.filter((patient) => patient.discharge === null);
   const now = new Date();
   const filterStart = addDays(startOfDay(now), -(period - 1));
@@ -225,9 +230,14 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
   const averageStay =
     filteredPatients.length === 0
       ? 0
-      : filteredPatients.reduce((sum, patient) => sum + (patient.stayMetrics.ctiDays ?? 0), 0) / filteredPatients.length;
+      : filteredPatients.reduce((sum, patient) => sum + (patient.stayMetrics?.ctiDays ?? 0), 0) / filteredPatients.length;
   const overdueFilters = filteredPatients.filter((patient) => patient.filterStatus.isOverdue).length;
   const preventiveFilters = filteredPatients.filter((patient) => patient.filterStatus.isPreventive).length;
+  const originStats = dashboard.originStats ?? [];
+  const populatedOriginStats = originStats.filter((item) => item.total > 0);
+  const averageAgeByOrigin = dashboard.averageAgeByOrigin ?? [];
+  const populatedAverageAgeByOrigin = averageAgeByOrigin.filter((item) => item.averageAge > 0);
+  const topOrigin = [...populatedOriginStats].sort((left, right) => right.total - left.total)[0];
 
   const occupancyTimeline = Array.from({ length: period }, (_, index) => {
     const day = addDays(filterStart, index);
@@ -251,12 +261,13 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
 
   const supportDistribution = filteredPatients
     .reduce<Array<{ name: string; value: number }>>((accumulator, patient) => {
-      const item = accumulator.find((entry) => entry.name === patient.ventilatorySupport);
+      const supportName = getVentilatorySupportLabel(patient.ventilatorySupport.type);
+      const item = accumulator.find((entry) => entry.name === supportName);
 
       if (item) {
         item.value += 1;
       } else {
-        accumulator.push({ name: patient.ventilatorySupport, value: 1 });
+        accumulator.push({ name: supportName, value: 1 });
       }
 
       return accumulator;
@@ -264,21 +275,21 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
     .sort((left, right) => right.value - left.value);
 
   const stayDistribution = [...filteredPatients]
-    .sort((left, right) => (right.stayMetrics.ctiDays ?? 0) - (left.stayMetrics.ctiDays ?? 0))
+    .sort((left, right) => (right.stayMetrics?.ctiDays ?? 0) - (left.stayMetrics?.ctiDays ?? 0))
     .slice(0, 8)
     .map((patient) => ({
       name: patient.name.split(" ").slice(0, 2).join(" "),
-      dias: patient.stayMetrics.ctiDays ?? 0,
-      suporte: patient.ventilatorySupport
+      dias: patient.stayMetrics?.ctiDays ?? 0,
+      suporte: formatVentilatorySupport(patient.ventilatorySupport)
     }));
 
   const patientProfile = filteredPatients.map((patient) => ({
     x: patient.age,
-    y: patient.stayMetrics.ctiDays ?? 0,
+    y: patient.stayMetrics?.ctiDays ?? 0,
     z: Math.max(120, patient.respiratoryAlerts.length * 60 + 120),
     name: patient.name,
     diagnosis: patient.diagnosis,
-    support: patient.ventilatorySupport
+    support: formatVentilatorySupport(patient.ventilatorySupport)
   }));
 
   const diagnosisDistribution = filteredPatients
@@ -362,9 +373,9 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
   const criticalInsights = [
     `${vmPatients.length} pacientes no recorte estao em ventilacao mecanica.`,
     `${overdueFilters} filtros vencidos e ${preventiveFilters} em janela preventiva.`,
-    filteredPatients.length > 0
-      ? `${filteredPatients[0].name.split(" ").slice(0, 2).join(" ")} lidera o maior tempo de permanencia no recorte.`
-      : "Sem pacientes ativos no recorte filtrado."
+    topOrigin
+      ? `${topOrigin.label} lidera as admissoes com ${topOrigin.total} pacientes.`
+      : "Sem dados de origem consolidados ate o momento."
   ];
 
   return (
@@ -448,6 +459,18 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
           <strong className={styles.metricValue}>{totalAlerts}</strong>
           <p>Alertas respiratorios e operacionais associados aos pacientes.</p>
         </article>
+
+        <article className={styles.metricCard}>
+          <span className={styles.metricLabel}>Idade media das internacoes</span>
+          <strong className={styles.metricValue}>{formatMetric(dashboard.averageAdmissionAge ?? 0, " anos")}</strong>
+          <p>Media consolidada considerando todas as internacoes registradas.</p>
+        </article>
+
+        <article className={styles.metricCard}>
+          <span className={styles.metricLabel}>Origem predominante</span>
+          <strong className={styles.metricValue}>{topOrigin?.label ?? "Nao informado"}</strong>
+          <p>{topOrigin ? `${topOrigin.total} internacoes (${topOrigin.percentage}%)` : "Sem dados de origem."}</p>
+        </article>
       </section>
 
       <section className={styles.contentGrid}>
@@ -486,26 +509,84 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
               <p>Distribuicao dos pacientes pelo suporte atual.</p>
             </div>
           </div>
-          <div className={styles.chartArea}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={supportDistribution}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={58}
-                  outerRadius={88}
-                  paddingAngle={4}
-                >
-                  {supportDistribution.map((entry, index) => (
-                    <Cell key={entry.name} fill={SUPPORT_COLORS[index % SUPPORT_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+          {supportDistribution.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={supportDistribution}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={58}
+                    outerRadius={88}
+                    paddingAngle={4}
+                  >
+                    {supportDistribution.map((entry, index) => (
+                      <Cell key={entry.name} fill={SUPPORT_COLORS[index % SUPPORT_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Nenhum paciente no recorte atual para distribuir por suporte.</div>
+          )}
+        </article>
+
+        <article className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2>Internacoes por origem</h2>
+              <p>Distribuicao consolidada das admissoes registradas.</p>
+            </div>
           </div>
+          {populatedOriginStats.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={populatedOriginStats} dataKey="total" nameKey="label" innerRadius={58} outerRadius={88} paddingAngle={4}>
+                    {populatedOriginStats.map((entry, index) => (
+                      <Cell key={entry.origin} fill={ORIGIN_COLORS[index % ORIGIN_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value, name) => [`${value}`, name]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Nenhuma internacao com origem informada ate o momento.</div>
+          )}
+        </article>
+
+        <article className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2>Percentual por origem</h2>
+              <p>Percentual relativo das internacoes por porta de entrada.</p>
+            </div>
+          </div>
+          {populatedOriginStats.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={populatedOriginStats}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip formatter={(value) => [`${value}%`, "Percentual"]} />
+                  <Bar dataKey="percentage" name="Percentual" radius={[10, 10, 0, 0]}>
+                    {populatedOriginStats.map((entry, index) => (
+                      <Cell key={entry.origin} fill={ORIGIN_COLORS[index % ORIGIN_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Sem percentual por origem para exibir.</div>
+          )}
         </article>
 
         <article className={styles.panel}>
@@ -515,17 +596,21 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
               <p>Pacientes com maior permanencia no recorte.</p>
             </div>
           </div>
-          <div className={styles.chartArea}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stayDistribution} layout="vertical" margin={{ left: 16, right: 12 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
-                <XAxis type="number" tickLine={false} axisLine={false} />
-                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={110} />
-                <Tooltip />
-                <Bar dataKey="dias" name="Dias de permanencia" radius={[0, 10, 10, 0]} fill="#0f766e" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {stayDistribution.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stayDistribution} layout="vertical" margin={{ left: 16, right: 12 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={110} />
+                  <Tooltip />
+                  <Bar dataKey="dias" name="Dias de permanencia" radius={[0, 10, 10, 0]} fill="#0f766e" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Sem pacientes no recorte atual para calcular permanencia.</div>
+          )}
         </article>
 
         <article className={`${styles.panel} ${styles.panelWide}`}>
@@ -535,30 +620,60 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
               <p>Idade versus permanencia, com diagnostico no tooltip.</p>
             </div>
           </div>
-          <div className={styles.chartArea}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
-                <XAxis type="number" dataKey="x" name="Idade" tickLine={false} axisLine={false} unit=" anos" />
-                <YAxis type="number" dataKey="y" name="Dias CTI" tickLine={false} axisLine={false} unit=" dias" />
-                <ZAxis type="number" dataKey="z" range={[120, 420]} />
-                <Tooltip
-                  cursor={{ strokeDasharray: "3 3" }}
-                  formatter={(value, name) => [value, name]}
-                  contentStyle={{ borderRadius: 16, borderColor: "#dbe4f0" }}
-                />
-                <Scatter data={patientProfile} name="Pacientes" fill="#d97706" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-          <div className={styles.supportingGrid}>
-            {diagnosisDistribution.map((item) => (
-              <div key={item.diagnosis} className={styles.miniStat}>
-                <span>{item.diagnosis}</span>
-                <strong>{item.total}</strong>
+          {patientProfile.length > 0 ? (
+            <>
+              <div className={styles.chartArea}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
+                    <XAxis type="number" dataKey="x" name="Idade" tickLine={false} axisLine={false} unit=" anos" />
+                    <YAxis type="number" dataKey="y" name="Dias CTI" tickLine={false} axisLine={false} unit=" dias" />
+                    <ZAxis type="number" dataKey="z" range={[120, 420]} />
+                    <Tooltip
+                      cursor={{ strokeDasharray: "3 3" }}
+                      formatter={(value, name) => [value, name]}
+                      contentStyle={{ borderRadius: 16, borderColor: "#dbe4f0" }}
+                    />
+                    <Scatter data={patientProfile} name="Pacientes" fill="#d97706" />
+                  </ScatterChart>
+                </ResponsiveContainer>
               </div>
-            ))}
+              <div className={styles.supportingGrid}>
+                {diagnosisDistribution.map((item) => (
+                  <div key={item.diagnosis} className={styles.miniStat}>
+                    <span>{item.diagnosis}</span>
+                    <strong>{item.total}</strong>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className={styles.emptyState}>Sem pacientes suficientes para montar o perfil do recorte.</div>
+          )}
+        </article>
+
+        <article className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2>Media de idade por origem</h2>
+              <p>Comparativo etario por origem das internacoes.</p>
+            </div>
           </div>
+          {populatedAverageAgeByOrigin.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={populatedAverageAgeByOrigin}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip formatter={(value) => [`${value} anos`, "Idade media"]} />
+                  <Bar dataKey="averageAge" name="Idade media" radius={[10, 10, 0, 0]} fill="#1d4ed8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Ainda nao ha idade media consolidada por origem.</div>
+          )}
         </article>
 
         <article className={styles.panel}>
@@ -568,20 +683,24 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
               <p>PCR, creatinina e lactato agregados por dia.</p>
             </div>
           </div>
-          <div className={styles.chartArea}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={labAverages}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="pcr" name="PCR" stroke="#dc2626" strokeWidth={2.5} />
-                <Line type="monotone" dataKey="creatinina" name="Creatinina" stroke="#2563eb" strokeWidth={2.5} />
-                <Line type="monotone" dataKey="lactato" name="Lactato" stroke="#7c3aed" strokeWidth={2.5} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {labAverages.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={labAverages}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="pcr" name="PCR" stroke="#dc2626" strokeWidth={2.5} />
+                  <Line type="monotone" dataKey="creatinina" name="Creatinina" stroke="#2563eb" strokeWidth={2.5} />
+                  <Line type="monotone" dataKey="lactato" name="Lactato" stroke="#7c3aed" strokeWidth={2.5} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Nenhum exame laboratorial no periodo selecionado.</div>
+          )}
         </article>
 
         <article className={styles.panel}>
@@ -591,21 +710,25 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
               <p>Total ativo: {totalAlerts} alertas em {periodLabel.toLowerCase()}.</p>
             </div>
           </div>
-          <div className={styles.chartArea}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={alertDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
-                <XAxis dataKey="type" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="total" name="Alertas" radius={[10, 10, 0, 0]}>
-                  {alertDistribution.map((entry, index) => (
-                    <Cell key={entry.type} fill={ALERT_COLORS[index % ALERT_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {alertDistribution.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={alertDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
+                  <XAxis dataKey="type" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="total" name="Alertas" radius={[10, 10, 0, 0]}>
+                    {alertDistribution.map((entry, index) => (
+                      <Cell key={entry.type} fill={ALERT_COLORS[index % ALERT_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Nenhum alerta ativo encontrado no periodo filtrado.</div>
+          )}
         </article>
       </section>
 
@@ -642,9 +765,7 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
               <Link key={patient.id} href={`/patients/${patient.id}`} className={styles.patientRow}>
                 <div>
                   <strong>{patient.name}</strong>
-                  <span>
-                    Leito {patient.lastBedId ? `L${100 + patient.lastBedId}` : "sem leito"} • {patient.ventilatorySupport}
-                  </span>
+                  <span>{getPatientBedLabel(patient)} - {formatVentilatorySupport(patient.ventilatorySupport)}</span>
                 </div>
                 <div className={styles.patientMeta}>
                   <span>{patient.respiratoryAlerts.length} alertas</span>
@@ -687,6 +808,10 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
                   </div>
                 </div>
               ))}
+
+            {filteredPatients.filter((patient) => patient.filterStatus.nextFilterChangeDateTime).length === 0 ? (
+              <div className={styles.emptyState}>Sem pacientes com janela de troca de filtro monitorada.</div>
+            ) : null}
           </div>
         </article>
       </section>

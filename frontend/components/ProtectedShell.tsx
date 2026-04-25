@@ -36,24 +36,40 @@ export function ProtectedShell({ children, routeKey }: ProtectedShellProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     const storedUser = getStoredUser();
+    const storedToken = getStoredToken();
 
-    if (!storedUser) {
-      router.replace("/");
+    if (!storedUser || !storedToken) {
+      clearSession();
+      setUser(null);
+      setRedirectPath(pathname === "/" ? null : "/");
+      setReady(true);
       return;
     }
 
     if (routeKey && !hasPermission(storedUser.role, routeKey)) {
-      router.replace(getDefaultRouteForRole(storedUser.role));
+      const nextPath = getDefaultRouteForRole(storedUser.role);
+
+      setUser(storedUser);
+      setRedirectPath(nextPath !== pathname ? nextPath : null);
+      setReady(true);
       return;
     }
 
     setUser(storedUser);
+    setRedirectPath(null);
     setReady(true);
-  }, [routeKey, router]);
+  }, [pathname, routeKey]);
+
+  useEffect(() => {
+    if (redirectPath) {
+      router.replace(redirectPath);
+    }
+  }, [redirectPath, router]);
 
   const navigation = useMemo(() => {
     return navigationItems.filter((item) => hasPermission(user?.role, item.routeKey));
@@ -84,6 +100,10 @@ export function ProtectedShell({ children, routeKey }: ProtectedShellProps) {
         </div>
       </main>
     );
+  }
+
+  if (!user || redirectPath) {
+    return null;
   }
 
   return (

@@ -12,19 +12,18 @@ type Props = {
 };
 
 const dischargeOptions = [
-  { value: "alta para casa", label: "Alta para casa" },
-  { value: "transferencia para quarto", label: "Transferencia para quarto" },
+  { value: "casa", label: "Alta para casa" },
+  { value: "quarto", label: "Alta para quarto" },
   { value: "transferencia", label: "Transferencia" },
-  { value: "obito", label: "Obito" }
+  { value: "obito", label: "Obito / Celestial" }
 ];
 
 const initialForm = {
   patientId: "",
-  type: "alta para casa",
+  type: "casa",
   dateTime: "",
-  note: "",
+  notes: "",
   roomNumber: "",
-  roomBed: "",
   destination: ""
 };
 
@@ -33,7 +32,11 @@ function formatPatientStatus(patient: Patient) {
     return `Saida: ${patient.discharge.type}`;
   }
 
-  return `Internado no leito ${String(patient.bedId ?? patient.lastBedId ?? 0).padStart(2, "0")}`;
+  if (patient.bedCode) {
+    return `Internado no leito ${patient.bedCode}`;
+  }
+
+  return "Sem leito ativo";
 }
 
 function formatDateTime(value: string) {
@@ -54,11 +57,9 @@ function formatDischargeDestination(patient: Patient) {
     return null;
   }
 
-  if (patient.discharge.type === "transferencia para quarto") {
+  if (patient.discharge.type === "quarto") {
     const room = patient.discharge.destination.roomNumber;
-    const bed = patient.discharge.destination.roomBed;
-
-    return bed ? `Quarto ${room}, leito ${bed}` : `Quarto ${room}`;
+    return room ? `Quarto ${room}` : null;
   }
 
   if (patient.discharge.type === "transferencia") {
@@ -75,18 +76,30 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
     [patients]
   );
   const [form, setForm] = useState(initialForm);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [highlightForm, setHighlightForm] = useState(false);
 
   function updateField(field: keyof typeof initialForm, value: string) {
     setForm((current) => {
+      if (field === "patientId") {
+        const patient = activePatients.find((currentPatient) => currentPatient.id === Number(value)) ?? null;
+        setSelectedPatient(patient);
+
+        return {
+          ...current,
+          patientId: value,
+          dateTime: current.dateTime || new Date().toISOString().slice(0, 16)
+        };
+      }
+
       if (field === "type") {
         return {
           ...current,
           type: value,
           roomNumber: "",
-          roomBed: "",
           destination: ""
         };
       }
@@ -95,10 +108,28 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
     });
   }
 
-  function selectPatient(patientId: number) {
-    setForm((current) => ({ ...current, patientId: String(patientId) }));
+  function handleSelectPatient(patient: Patient) {
+    console.log("clicou alta");
+    setSelectedPatient(patient);
+    setHighlightForm(true);
+    setForm((current) => ({
+      ...current,
+      patientId: String(patient.id),
+      dateTime: current.dateTime || new Date().toISOString().slice(0, 16)
+    }));
     setMessage("");
     setError("");
+
+    window.setTimeout(() => {
+      document.getElementById("discharge")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 0);
+
+    window.setTimeout(() => {
+      setHighlightForm(false);
+    }, 1800);
   }
 
   const preferredActivePatientId =
@@ -108,7 +139,13 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
 
   useEffect(() => {
     if (!form.patientId && preferredActivePatientId) {
-      setForm((current) => ({ ...current, patientId: preferredActivePatientId }));
+      const patient = activePatients.find((currentPatient) => currentPatient.id === Number(preferredActivePatientId)) ?? null;
+      setSelectedPatient(patient);
+      setForm((current) => ({
+        ...current,
+        patientId: preferredActivePatientId,
+        dateTime: current.dateTime || new Date().toISOString().slice(0, 16)
+      }));
     }
   }, [form.patientId, preferredActivePatientId]);
 
@@ -117,8 +154,8 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
       return "Preencha paciente, tipo de saida e data/hora.";
     }
 
-    if (form.type === "transferencia para quarto" && !form.roomNumber.trim()) {
-      return "Informe o numero do quarto para transferencia para quarto.";
+    if (form.type === "quarto" && !form.roomNumber.trim()) {
+      return "Informe o numero do quarto de destino.";
     }
 
     if (form.type === "transferencia" && !form.destination.trim()) {
@@ -140,15 +177,15 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
       return;
     }
 
-    const selectedPatient = activePatients.find((patient) => patient.id === Number(form.patientId));
+    const currentPatient = activePatients.find((patient) => patient.id === Number(form.patientId));
 
-    if (!selectedPatient) {
+    if (!currentPatient) {
       setError("Selecione um paciente internado.");
       return;
     }
 
     const confirmed = window.confirm(
-      `Confirmar a saida de ${selectedPatient.name} com o tipo "${form.type}"?`
+      `Confirmar a saida de ${currentPatient.name} com o tipo "${form.type}"?`
     );
 
     if (!confirmed) {
@@ -158,17 +195,18 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
     setSaving(true);
 
     try {
+      console.log("confirmando alta");
       await dischargePatient(Number(form.patientId), {
-        type: form.type,
+        type: form.type as "casa" | "quarto" | "transferencia" | "obito",
         dateTime: form.dateTime,
-        note: form.note.trim(),
+        notes: form.notes.trim(),
         roomNumber: form.roomNumber.trim(),
-        roomBed: form.roomBed.trim(),
         destination: form.destination.trim()
       });
 
       setMessage("Saida do paciente registrada com sucesso.");
       setForm(initialForm);
+      setSelectedPatient(null);
       router.refresh();
     } catch (submissionError) {
       setError(
@@ -184,7 +222,10 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
   const recentPatients = [...patients].slice(-6).reverse();
 
   return (
-    <section id="discharge" className={`${styles.card} card`}>
+    <section
+      id="discharge"
+      className={`${styles.card} card ${highlightForm ? styles.formHighlight : ""}`}
+    >
       <div className={styles.header}>
         <div>
           <h2>Alta / Saida</h2>
@@ -205,11 +246,18 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
               <option value="">Selecione um paciente</option>
               {activePatients.map((patient) => (
                 <option key={patient.id} value={patient.id}>
-                  {patient.name} - Leito {String(patient.bedId).padStart(2, "0")}
+                  {patient.name} - {patient.bedCode ?? "Sem leito ativo"}
                 </option>
               ))}
             </select>
           </div>
+
+          {selectedPatient ? (
+            <div className={`${styles.field} ${styles.full}`}>
+              <label>Paciente selecionado</label>
+              <input value={`${selectedPatient.name} - ${selectedPatient.bedCode ?? "Sem leito ativo"}`} readOnly />
+            </div>
+          ) : null}
 
           <div className={styles.field}>
             <label htmlFor="discharge-type">Tipo de saida</label>
@@ -236,28 +284,16 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
             />
           </div>
 
-          {form.type === "transferencia para quarto" ? (
-            <>
-              <div className={styles.field}>
-                <label htmlFor="discharge-room-number">Numero do quarto</label>
-                <input
-                  id="discharge-room-number"
-                  value={form.roomNumber}
-                  onChange={(event) => updateField("roomNumber", event.target.value)}
-                  placeholder="Ex.: 302"
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="discharge-room-bed">Leito do quarto</label>
-                <input
-                  id="discharge-room-bed"
-                  value={form.roomBed}
-                  onChange={(event) => updateField("roomBed", event.target.value)}
-                  placeholder="Opcional"
-                />
-              </div>
-            </>
+          {form.type === "quarto" ? (
+            <div className={styles.field}>
+              <label htmlFor="discharge-room-number">Numero do quarto</label>
+              <input
+                id="discharge-room-number"
+                value={form.roomNumber}
+                onChange={(event) => updateField("roomNumber", event.target.value)}
+                placeholder="Ex.: 302"
+              />
+            </div>
           ) : null}
 
           {form.type === "transferencia" ? (
@@ -273,12 +309,12 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
           ) : null}
 
           <div className={`${styles.field} ${styles.full}`}>
-            <label htmlFor="discharge-note">Observacao</label>
+            <label htmlFor="discharge-note">Observacoes</label>
             <textarea
               id="discharge-note"
               rows={3}
-              value={form.note}
-              onChange={(event) => updateField("note", event.target.value)}
+              value={form.notes}
+              onChange={(event) => updateField("notes", event.target.value)}
               placeholder="Observacao clinica opcional sobre a saida."
             />
           </div>
@@ -320,7 +356,7 @@ export function PatientDischargeCard({ patients, initialPatientId = null }: Prop
                 <button
                   className={styles.secondaryButton}
                   type="button"
-                  onClick={() => selectPatient(patient.id)}
+                  onClick={() => handleSelectPatient(patient)}
                 >
                   Alta / Saida
                 </button>

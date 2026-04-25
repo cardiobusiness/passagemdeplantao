@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  name      String
+  email     String  @unique
+  login     String  @unique
+  password  String
+  jobTitle  String
+  role      String  @default("routine") // administrator, coordinator, routine, oncall
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Bed {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique // L101, L102, etc
+  sector    String  @default("CTI 1")
+  occupied  Boolean @default(false)
+  status    String  @default("Vago") // Vago, Estável, Atenção, Alta prevista
+  patientId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@map("beds")
+}
+
+model Patient {
+  id                  Int     @id @default(autoincrement())
+  name                String
+  recordNumber        String  @unique
+  age                 Int
+  diagnosis           String
+  origin              String?
+  internalTransferLocation String?
+  admissionDate       DateTime
+  ventilatorySupport  Json?
+  ventilatorySupport Json?
+  reasonForAdmission  String?
+  clinicalHistory     Json?   // JSON for flexibility
+  mechanicalVentilation Json? // JSON for flexibility
+  ventilatorParameters Json?
+  restrictions        Json?   // JSON for flexibility
+  physiotherapyPlan   Json?   // JSON for flexibility
+  filterChanges       Json?
+  complementaryExams  Json?
+  clinicalNotes       String?
+  clinicalUpdatedAt   DateTime?
+  clinicalUpdatedBy   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  beds                Bed[]
+  admissionMetrics    AdmissionMetrics?
+  labs                Lab[]
+  imaging             Imaging[]
+  evolutions          Evolution[]
+  alerts              Alert[]
+
+  @@map("patients")
+}
+
+model AdmissionMetrics {
+  id                    Int     @id @default(autoincrement())
+  patientId             Int     @unique
+  daysInHospital        Int?
+  daysInICU             Int?
+  daysOnVM              Int?
+  daysOnIOT             Int?
+  daysOnTQT             Int?
+  extubationTime        Int?    // in hours
+  lastFilterChangeDate  DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("admission_metrics")
+}
+
+model Lab {
+  id              Int     @id @default(autoincrement())
+  patientId       Int
+  date            DateTime
+  hb              String?
+  ht              String?
+  leuco           String?
+  bt              String?
+  plq             String?
+  ur              String?
+  cr              String?
+  pcr             String?
+  na              String?
+  k               String?
+  ca              String?
+  lactate         String?
+  extraExamName   String?
+  extraExamValue  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("labs")
+}
+
+model Imaging {
+  id              Int     @id @default(autoincrement())
+  patientId       Int
+  date            DateTime
+  type            String  // rx, ct, ultrasound, etc
+  report          String  // description of the imaging result
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("imaging")
+}
+
+model Evolution {
+  id              Int     @id @default(autoincrement())
+  patientId       Int
+  date            DateTime
+  type            String  // respiratoria, motora
+  description     String
+  professionalName String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("evolutions")
+}
+
+model Alert {
+  id              Int     @id @default(autoincrement())
+  patientId       Int
+  description     String
+  severity        String  @default("medium") // low, medium, high
+  isActive        Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("alerts")
+}
+
+model Handover {
+  id              Int     @id @default(autoincrement())
+  professionalId  Int
+  bedIds          Int[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("handovers")
+}

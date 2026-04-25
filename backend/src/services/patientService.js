@@ -1,515 +1,750 @@
-import { beds, patients } from "../data/mockData.js";
+import { prisma } from "../middleware/prismaMiddleware.js";
+import { mapPatientRecord } from "../utils/patientMapper.js";
 
-const dischargeTypes = [
-  "alta para casa",
-  "transferencia para quarto",
-  "transferencia",
-  "obito"
-];
+function getPatientInclude() {
+  return {
+    beds: {
+      where: { occupied: true },
+      take: 1,
+      orderBy: { id: "asc" }
+    },
+    admissionMetrics: true,
+    labs: { orderBy: { date: "desc" } },
+    imaging: { orderBy: { date: "desc" } },
+    evolutions: { orderBy: { date: "desc" } },
+    alerts: { where: { isActive: true } }
+  };
+}
 
-function toDate(value, endOfDay = false) {
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeDefined(existingValue, incomingValue) {
+  if (incomingValue === undefined) {
+    return existingValue;
+  }
+
+  if (Array.isArray(incomingValue)) {
+    return incomingValue;
+  }
+
+  if (isPlainObject(existingValue) || isPlainObject(incomingValue)) {
+    const base = isPlainObject(existingValue) ? existingValue : {};
+    const incoming = isPlainObject(incomingValue) ? incomingValue : {};
+    const merged = { ...base };
+
+    for (const key of Object.keys(incoming)) {
+      merged[key] = mergeDefined(base[key], incoming[key]);
+    }
+
+    return merged;
+  }
+
+  return incomingValue;
+}
+
+function cleanJson(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeString(value) {
+  return String(value ?? "").trim();
+}
+
+function normalizeStringArray(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values.map((item) => normalizeString(item)).filter(Boolean);
+}
+
+function normalizeNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeSupportType(value) {
+  const normalized = normalizeString(value).toLowerCase();
+  const aliases = {
+    "ar ambiente": "ar_ambiente",
+    ar_ambiente: "ar_ambiente",
+    "cateter nasal": "cateter_nasal",
+    cateter_nasal: "cateter_nasal",
+    "máscara de venturi": "venturi",
+    "mascara de venturi": "venturi",
+    venturi: "venturi",
+    "alto fluxo": "alto_fluxo",
+    hfnc: "alto_fluxo",
+    alto_fluxo: "alto_fluxo",
+    "macronebulização": "macronebulizacao",
+    macronebulizacao: "macronebulizacao",
+    vni: "vni",
+    "ventilação mecânica invasiva": "vmi",
+    "ventilacao mecanica invasiva": "vmi",
+    vmi: "vmi",
+    traqueostomia: "traqueostomia"
+  };
+
+  return aliases[normalized] ?? normalized;
+}
+
+function normalizeVentilatorySupport(value) {
   if (!value) {
     return null;
   }
 
-  const normalizedValue =
-    typeof value === "string" && value.length === 10
-      ? `${value}T${endOfDay ? "23:59:59" : "00:00:00"}`
-      : value;
-  const parsedDate = new Date(normalizedValue);
+  const source = typeof value === "string" ? { type: value } : value;
+  const type = normalizeSupportType(source?.type);
 
-  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
-}
-
-function diffInDays(fromValue, toValue = new Date()) {
-  const fromDate = toDate(fromValue);
-  const endDate = toDate(toValue) ?? toValue;
-
-  if (!fromDate || !endDate || Number.isNaN(endDate.getTime())) {
+  if (!type) {
     return null;
   }
 
-  return Math.max(1, Math.ceil((endDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)));
-}
+  const support = {
+    type,
+    flowRate: normalizeNumber(source?.flowRate),
+    fio2: normalizeNumber(source?.fio2),
+    temperature: normalizeNumber(source?.temperature),
+    mode: normalizeString(source?.mode) || null,
+    ipap: normalizeNumber(source?.ipap),
+    epap: normalizeNumber(source?.epap),
+    peep: normalizeNumber(source?.peep),
+    tidalVolume: normalizeNumber(source?.tidalVolume),
+    respiratoryRate: normalizeNumber(source?.respiratoryRate),
+    pressureSupport: normalizeNumber(source?.pressureSupport),
+    solution: normalizeString(source?.solution) || null,
+    targetSaturation: normalizeNumber(source?.targetSaturation)
+  };
 
-function diffInHours(fromValue, toValue) {
-  const fromDate = toDate(fromValue);
-  const endDate = toDate(toValue);
-
-  if (!fromDate || !endDate) {
-    return null;
+  if (type === "cateter_nasal" && support.flowRate == null) {
+    throw new Error("Informe a litragem em L/min para cateter nasal.");
   }
 
-  return Math.max(0, Math.ceil((endDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60)));
+  if (type === "venturi" && (support.flowRate == null || support.fio2 == null)) {
+    throw new Error("Informe fluxo e FiO2 para mascara de Venturi.");
+  }
+
+  if (type === "alto_fluxo" && (support.flowRate == null || support.fio2 == null)) {
+    throw new Error("Informe fluxo e FiO2 para alto fluxo.");
+  }
+
+  if (type === "macronebulizacao" && support.flowRate == null) {
+    throw new Error("Informe o fluxo em L/min para macronebulizacao.");
+  }
+
+  if (type === "vni" && (!support.mode || support.ipap == null || support.epap == null || support.fio2 == null)) {
+    throw new Error("Informe modo, IPAP, EPAP e FiO2 para VNI.");
+  }
+
+  if (
+    type === "vmi" &&
+    (!support.mode ||
+      support.tidalVolume == null ||
+      support.respiratoryRate == null ||
+      support.peep == null ||
+      support.fio2 == null ||
+      support.pressureSupport == null)
+  ) {
+    throw new Error("Informe modo, VC, FR, PEEP, FiO2 e pressao suporte para ventilacao mecanica invasiva.");
+  }
+
+  return support;
 }
 
-function buildFilterStatus(lastFilterChangeDateTime) {
-  if (!lastFilterChangeDateTime) {
+function getBedStatusFromSupport(ventilatorySupport) {
+  return ventilatorySupport?.type === "vmi" || ventilatorySupport?.type === "vni" ? "Atencao" : "Estavel";
+}
+
+function normalizeLabs(labs) {
+  if (!Array.isArray(labs)) {
+    return [];
+  }
+
+  return labs.map((lab) => ({
+    date: new Date(lab?.date ?? new Date()),
+    hb: normalizeString(lab?.hb) || null,
+    ht: normalizeString(lab?.ht) || null,
+    leuco: normalizeString(lab?.leuco) || null,
+    bt: normalizeString(lab?.bt) || null,
+    plq: normalizeString(lab?.plq) || null,
+    ur: normalizeString(lab?.ur) || null,
+    cr: normalizeString(lab?.cr) || null,
+    pcr: normalizeString(lab?.pcr) || null,
+    na: normalizeString(lab?.na) || null,
+    k: normalizeString(lab?.k) || null,
+    ca: normalizeString(lab?.ca) || null,
+    lactate: normalizeString(lab?.ac ?? lab?.lactate) || null,
+    extraExamName: normalizeString(lab?.extraExamName) || null,
+    extraExamValue: normalizeString(lab?.extraExamValue) || null
+  }));
+}
+
+function normalizeImaging(imaging) {
+  if (!Array.isArray(imaging)) {
+    return [];
+  }
+
+  return imaging
+    .filter((exam) => {
+      const rawDate = normalizeString(exam?.date);
+
+      if (!rawDate) {
+        return false;
+      }
+
+      return !Number.isNaN(new Date(rawDate).getTime());
+    })
+    .map((exam) => ({
+      date: new Date(exam.date),
+      type: normalizeString(exam?.type) || "Nao informado",
+      report: normalizeString(exam?.result ?? exam?.report)
+    }));
+}
+
+function normalizeComplementaryExams(value) {
+  if (!isPlainObject(value)) {
     return {
-      lastFilterChangeDateTime: null,
-      nextFilterChangeDateTime: null,
-      status: "nao_aplicavel",
-      label: "Sem filtro monitorado",
-      hoursUntilNextChange: null,
-      isOverdue: false,
-      isPreventive: false
+      bloodGas: [],
+      tomography: [],
+      other: []
     };
   }
 
-  const lastChange = toDate(lastFilterChangeDateTime);
-
-  if (!lastChange) {
-    return {
-      lastFilterChangeDateTime,
-      nextFilterChangeDateTime: null,
-      status: "indefinido",
-      label: "Data de filtro invalida",
-      hoursUntilNextChange: null,
-      isOverdue: false,
-      isPreventive: false
-    };
-  }
-
-  const nextChange = new Date(lastChange.getTime() + 3 * 24 * 60 * 60 * 1000);
-  const hoursUntilNextChange = Math.ceil((nextChange.getTime() - Date.now()) / (1000 * 60 * 60));
-  const isOverdue = hoursUntilNextChange < 0;
-  const isPreventive = !isOverdue && hoursUntilNextChange < 24;
-
   return {
-    lastFilterChangeDateTime: lastChange.toISOString(),
-    nextFilterChangeDateTime: nextChange.toISOString(),
-    status: isOverdue ? "vencido" : isPreventive ? "preventivo" : "ok",
-    label: isOverdue ? "Troca de filtro vencida" : isPreventive ? "Troca de filtro em menos de 24h" : "Filtro dentro do prazo",
-    hoursUntilNextChange,
-    isOverdue,
-    isPreventive
+    bloodGas: Array.isArray(value.bloodGas)
+      ? value.bloodGas.map((item) => ({
+          date: normalizeString(item?.date),
+          ph: normalizeString(item?.ph),
+          pao2: normalizeString(item?.pao2),
+          paco2: normalizeString(item?.paco2),
+          hco3: normalizeString(item?.hco3)
+        }))
+      : [],
+    tomography: Array.isArray(value.tomography)
+      ? value.tomography.map((item) => ({
+          date: normalizeString(item?.date),
+          type: normalizeString(item?.type),
+          result: normalizeString(item?.result)
+        }))
+      : [],
+    other: Array.isArray(value.other)
+      ? value.other.map((item) => ({
+          date: normalizeString(item?.date),
+          type: normalizeString(item?.type),
+          result: normalizeString(item?.result)
+        }))
+      : []
   };
 }
 
-function buildCalculatedFields(patient) {
-  const now = new Date();
-  const extubationDate = patient.respiratoryTimeline?.extubationDate;
-  const iotDate = patient.respiratoryTimeline?.iotDate;
-  const tqtDate = patient.respiratoryTimeline?.tqtDate;
-  const vmStartDate = patient.respiratoryTimeline?.mechanicalVentilationStartDate;
-  const iotEndReference = extubationDate ?? now.toISOString();
-  const filterStatus = buildFilterStatus(patient.filterControl?.lastFilterChangeDateTime ?? null);
-  const respiratoryAlerts = [...patient.alerts];
+function normalizeFilterChanges(payload, existingFilterChanges = {}) {
+  const ventilatoryLast =
+    payload?.filterChanges?.ventilatoryFilter?.lastChangeDateTime ??
+    payload?.filterStatus?.lastFilterChangeDateTime ??
+    undefined;
+  const trachCareLast =
+    payload?.filterChanges?.trachCare?.lastChangeDateTime ??
+    payload?.filterStatus?.trachCare?.lastChangeDateTime ??
+    undefined;
 
-  if (filterStatus.isOverdue || filterStatus.isPreventive) {
-    respiratoryAlerts.push(filterStatus.label);
-  }
-
-  return {
-    stayMetrics: {
-      hospitalDays: diffInDays(patient.hospitalAdmissionDate, now.toISOString()),
-      ctiDays: diffInDays(patient.ctiAdmissionDate, now.toISOString()),
-      mechanicalVentilationDays:
-        patient.mechanicalVentilation || patient.ventilatorySupport === "VMI"
-          ? diffInDays(vmStartDate, now.toISOString())
-          : null,
-      iotDays: iotDate ? diffInDays(iotDate, iotEndReference) : null,
-      tqtDays: tqtDate ? diffInDays(tqtDate, now.toISOString()) : null,
-      extubationHours: extubationDate ? diffInHours(extubationDate, now.toISOString()) : null,
-      extubationDays: extubationDate ? diffInDays(extubationDate, now.toISOString()) : null
-    },
-    filterStatus,
-    respiratoryAlerts
-  };
+  return mergeDefined(existingFilterChanges, {
+    ventilatoryFilter: ventilatoryLast !== undefined ? { lastChangeDateTime: ventilatoryLast || null } : undefined,
+    trachCare: trachCareLast !== undefined ? { lastChangeDateTime: trachCareLast || null } : undefined
+  });
 }
 
-function enrichPatientRecord(patient) {
-  return {
-    ...patient,
-    ...buildCalculatedFields(patient)
-  };
-}
-
-export function getPatients() {
-  return patients.map(enrichPatientRecord);
-}
-
-export function getPatientById(id) {
-  const patient = patients.find((currentPatient) => currentPatient.id === Number(id));
-  return patient ? enrichPatientRecord(patient) : null;
-}
-
-function getPatientRecordById(id) {
-  return patients.find((patient) => patient.id === Number(id));
-}
-
-function normalizeText(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-const dailyLabFields = ["hb", "ht", "leuco", "bt", "plq", "ur", "cr", "pcr", "na", "k", "ca", "ac"];
-
-function normalizeDailyLabRecord(data) {
-  return {
-    date: normalizeText(data.date),
-    hb: normalizeText(data.hb),
-    ht: normalizeText(data.ht),
-    leuco: normalizeText(data.leuco),
-    bt: normalizeText(data.bt),
-    plq: normalizeText(data.plq),
-    ur: normalizeText(data.ur),
-    cr: normalizeText(data.cr),
-    pcr: normalizeText(data.pcr),
-    na: normalizeText(data.na),
-    k: normalizeText(data.k),
-    ca: normalizeText(data.ca),
-    ac: normalizeText(data.ac),
-    extraExamName: normalizeText(data.extraExamName),
-    extraExamValue: normalizeText(data.extraExamValue)
-  };
-}
-
-function validateDailyLabRecord(record) {
-  if (!record.date) {
-    throw new Error("Data do exame obrigatoria.");
-  }
-
-  const parsedDate = new Date(`${record.date}T00:00:00`);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    throw new Error("Data do exame invalida.");
-  }
-
-  if (record.extraExamName && !record.extraExamValue) {
-    throw new Error("Informe o valor do exame extra.");
-  }
-
-  if (!record.extraExamName && record.extraExamValue) {
-    throw new Error("Informe o nome do exame extra.");
-  }
-}
-
-function validatePatientData(data) {
-  const requiredFields = [
-    "name",
-    "recordNumber",
-    "age",
-    "diagnosis",
-    "bedId",
-    "admissionDate",
-    "ventilatorySupport",
-    "mobilityLevel"
-  ];
-
-  const missingFields = requiredFields.filter((field) => {
-    const value = data[field];
-
-    if (typeof value === "string") {
-      return !value.trim();
-    }
-
-    return value === undefined || value === null || value === "";
+export async function getPatients() {
+  const patients = await prisma.patient.findMany({
+    include: getPatientInclude(),
+    orderBy: { admissionDate: "desc" }
   });
 
-  if (missingFields.length > 0) {
-    throw new Error(`Campos obrigatorios: ${missingFields.join(", ")}`);
+  return patients.map(mapPatientRecord);
+}
+
+export async function getPatientById(patientId) {
+  const patient = await prisma.patient.findUnique({
+    where: { id: Number(patientId) },
+    include: getPatientInclude()
+  });
+
+  if (!patient) {
+    const error = new Error("Paciente nao encontrado.");
+    error.statusCode = 404;
+    throw error;
   }
 
-  const age = Number(data.age);
+  return mapPatientRecord(patient);
+}
 
-  if (!Number.isInteger(age) || age <= 0) {
-    throw new Error("Idade invalida. Informe um numero inteiro maior que zero.");
+export async function createPatient(payload) {
+  const name = normalizeString(payload?.name);
+  const recordNumber = normalizeString(payload?.recordNumber);
+  const age = Number(payload?.age ?? 0);
+  const diagnosis = normalizeString(payload?.diagnosis);
+  const origin = normalizeString(payload?.origin).toLowerCase();
+  const internalTransferLocation = normalizeString(payload?.internalTransferLocation);
+  const admissionDate = new Date(payload?.admissionDate ?? new Date());
+  const ventilatorySupport = normalizeVentilatorySupport(payload?.ventilatorySupport);
+  const mobilityLevel = normalizeString(payload?.mobilityLevel);
+  const reasonForAdmission = normalizeString(payload?.reasonForAdmission);
+  const bedId = Number(payload?.bedId ?? 0);
+
+  if (!name) {
+    throw new Error("Nome do paciente nao informado.");
   }
 
-  const bedId = Number(data.bedId);
+  if (!recordNumber) {
+    throw new Error("Numero de registro nao informado.");
+  }
+
+  if (!diagnosis) {
+    throw new Error("Diagnostico nao informado.");
+  }
+
+  if (!origin) {
+    throw new Error("Origem do paciente nao informada.");
+  }
+
+  if (!["emergencia", "transferencia_externa", "centro_cirurgico", "transferencia_interna"].includes(origin)) {
+    throw new Error("Origem do paciente invalida.");
+  }
+
+  if (origin === "transferencia_interna" && !internalTransferLocation) {
+    throw new Error("Informe o local da transferencia interna.");
+  }
 
   if (!Number.isInteger(bedId) || bedId <= 0) {
-    throw new Error("Leito invalido.");
+    throw new Error("Leito nao informado.");
   }
 
-  const bed = beds.find((currentBed) => currentBed.id === bedId);
+  const existingPatient = await prisma.patient.findUnique({
+    where: { recordNumber }
+  });
+
+  if (existingPatient) {
+    throw new Error("Ja existe um paciente com este numero de registro.");
+  }
+
+  const bed = await prisma.bed.findUnique({
+    where: { id: bedId }
+  });
 
   if (!bed) {
     throw new Error("Leito nao encontrado.");
   }
 
-  const duplicatedRecord = patients.some(
-    (patient) => patient.recordNumber.toLowerCase() === normalizeText(data.recordNumber).toLowerCase()
-  );
-
-  if (duplicatedRecord) {
-    throw new Error("Ja existe um paciente com este prontuario.");
-  }
-}
-
-export function createPatient(data) {
-  validatePatientData(data);
-
-  const bedId = Number(data.bedId);
-  const bed = beds.find((currentBed) => currentBed.id === bedId);
-
-  if (!bed || bed.occupied || bed.patientId) {
-    throw new Error("Leito indisponivel para admissao.");
+  if (bed.occupied) {
+    throw new Error("O leito selecionado ja esta ocupado.");
   }
 
-  const nextId = Math.max(...patients.map((patient) => patient.id), 0) + 1;
-  const patient = {
-    id: nextId,
-    name: normalizeText(data.name),
-    recordNumber: normalizeText(data.recordNumber),
-    age: Number(data.age),
-    diagnosis: normalizeText(data.diagnosis),
-    bedId,
-    lastBedId: bedId,
-    hospitalAdmissionDate: data.admissionDate,
-    ctiAdmissionDate: data.admissionDate,
-    admissionDate: data.admissionDate,
-    ventilatorySupport: normalizeText(data.ventilatorySupport),
-    mobilityLevel: normalizeText(data.mobilityLevel),
-    respiratoryTimeline: {
-      mechanicalVentilationStartDate:
-        normalizeText(data.ventilatorySupport) === "VMI" ? `${data.admissionDate}T08:00:00` : null,
-      iotDate: normalizeText(data.ventilatorySupport) === "VMI" ? `${data.admissionDate}T08:00:00` : null,
-      tqtDate: normalizeText(data.ventilatorySupport) === "Traqueostomia" ? `${data.admissionDate}T08:00:00` : null,
-      extubationDate: null
-    },
-    filterControl: {
-      lastFilterChangeDateTime:
-        normalizeText(data.ventilatorySupport) === "VMI" || normalizeText(data.ventilatorySupport) === "Traqueostomia"
-          ? `${data.admissionDate}T09:00:00`
-          : null
-    },
-    reasonForAdmission: normalizeText(data.diagnosis),
-    clinicalHistory: {
-      antecedentes: ["Sem antecedentes relevantes registrados."],
-      comorbidities: ["Sem comorbidades registradas."],
-      intercurrences: ["Sem intercorrencias nas ultimas 24 horas."],
-      clinicalAlerts: []
-    },
-    mechanicalVentilation:
-      normalizeText(data.ventilatorySupport) === "VMI" || normalizeText(data.ventilatorySupport) === "Traqueostomia"
-        ? {
-            typeOfSupport:
-              normalizeText(data.ventilatorySupport) === "VMI"
-                ? "Ventilacao mecanica invasiva"
-                : "Via aerea artificial",
-            airway: normalizeText(data.ventilatorySupport) === "Traqueostomia" ? "Traqueostomia" : "Orotraqueal",
-            totTqt: normalizeText(data.ventilatorySupport) === "Traqueostomia" ? "TQT" : "TOT",
-            ventilatoryMode: "A definir",
-            fio2: "A definir",
-            peep: "A definir",
-            tidalVolume: "A definir",
-            inspiratoryPressure: "A definir",
-            programmedRespiratoryRate: "A definir",
-            cuff: "A definir",
-            observations: ""
-          }
-        : null,
-    restrictions: {
-      motor: ["Sem restricoes motoras adicionais."],
-      respiratory: ["Sem restricoes respiratorias adicionais."],
-      mobilization: ["Mobilizacao conforme tolerancia hemodinamica."],
-      isolation: "Sem isolamento",
-      contraindications: ["Sem contraindicacoes absolutas registradas."]
-    },
-    physiotherapyPlan: {
-      respiratoryEvolution: `Manter acompanhamento respiratorio para ${normalizeText(data.ventilatorySupport)}.`,
-      motorEvolution: `Progressao motora conforme nivel atual: ${normalizeText(data.mobilityLevel)}.`,
-      conducts: ["Monitorizacao fisioterapeutica diaria", "Reavaliacao funcional por plantao"],
-      patientResponse: "Resposta inicial ainda em observacao."
-    },
-    discharge: null,
-    alerts: [],
-    labs: [],
-    bloodGas: [],
-    imaging: [],
-    evolutions: []
-  };
-
-  patients.push(patient);
-  bed.occupied = true;
-  bed.status = "Estavel";
-  bed.patientId = patient.id;
-  bed.alertCount = 0;
-
-  return enrichPatientRecord(patient);
-}
-
-export function getPatientLabs(patientId) {
-  const patient = getPatientRecordById(patientId);
-
-  if (!patient) {
-    throw new Error("Paciente nao encontrado.");
-  }
-
-  return [...patient.labs]
-    .map((lab, index) => ({
-      id: lab.id ?? index + 1,
-      ...normalizeDailyLabRecord(lab)
-    }))
-    .sort((firstLab, secondLab) => {
-      const dateCompare = secondLab.date.localeCompare(firstLab.date);
-
-      if (dateCompare !== 0) {
-        return dateCompare;
+  const patientId = await prisma.$transaction(async (tx) => {
+    const createdPatient = await tx.patient.create({
+      data: {
+        name,
+        recordNumber,
+        age,
+        diagnosis,
+        origin,
+        internalTransferLocation: origin === "transferencia_interna" ? internalTransferLocation : null,
+        admissionDate,
+        ventilatorySupport: cleanJson(ventilatorySupport),
+        mobilityLevel: mobilityLevel || null,
+        reasonForAdmission: reasonForAdmission || diagnosis,
+        clinicalHistory: cleanJson(payload?.clinicalHistory || {
+          antecedentes: [],
+          comorbidities: [],
+          intercurrences: [],
+          clinicalAlerts: []
+        }),
+        restrictions: cleanJson(payload?.restrictions || {
+          motor: [],
+          respiratory: [],
+          mobilization: [],
+          isolation: "Nao",
+          contraindications: []
+        }),
+        physiotherapyPlan: cleanJson(payload?.physiotherapyPlan || {
+          respiratoryEvolution: "Acompanhamento respiratorio",
+          motorEvolution: "Mobilizacao conforme tolerancia",
+          conducts: [],
+          patientResponse: "Nao informado"
+        })
       }
-
-      return secondLab.id - firstLab.id;
     });
+
+    await tx.admissionMetrics.create({
+      data: {
+        patientId: createdPatient.id,
+        daysInHospital: 0,
+        daysInICU: 0,
+        daysOnVM: 0,
+        daysOnIOT: 0,
+        daysOnTQT: 0
+      }
+    });
+
+    await tx.bed.update({
+      where: { id: bedId },
+      data: {
+        occupied: true,
+        patientId: createdPatient.id,
+        status: getBedStatusFromSupport(ventilatorySupport)
+      }
+    });
+
+    return createdPatient.id;
+  }, {
+    timeout: 15000
+  });
+
+  const patient = await prisma.patient.findUnique({
+    where: { id: patientId },
+    include: getPatientInclude()
+  });
+
+  if (!patient) {
+    throw new Error("Paciente criado, mas nao foi possivel carregar o registro.");
+  }
+
+  return mapPatientRecord(patient);
 }
 
-export function createPatientLab(patientId, data) {
+export async function updatePatientClinicalData(patientId, payload) {
   const numericPatientId = Number(patientId);
-
-  if (!Number.isInteger(numericPatientId) || numericPatientId <= 0) {
-    throw new Error("Paciente invalido.");
-  }
-
-  const patient = getPatientRecordById(numericPatientId);
+  const patient = await prisma.patient.findUnique({
+    where: { id: numericPatientId },
+    include: {
+      admissionMetrics: true,
+      beds: {
+        where: { occupied: true },
+        take: 1
+      }
+    }
+  });
 
   if (!patient) {
-    throw new Error("Paciente nao encontrado.");
+    const error = new Error("Paciente nao encontrado.");
+    error.statusCode = 404;
+    throw error;
   }
 
-  const normalizedRecord = normalizeDailyLabRecord(data);
-  validateDailyLabRecord(normalizedRecord);
+  const currentMechanicalVentilation = isPlainObject(patient.mechanicalVentilation) ? patient.mechanicalVentilation : {};
+  const currentVentilatorParameters = isPlainObject(patient.ventilatorParameters) ? patient.ventilatorParameters : {};
+  const currentRestrictions = isPlainObject(patient.restrictions) ? patient.restrictions : {};
+  const currentPhysiotherapyPlan = isPlainObject(patient.physiotherapyPlan) ? patient.physiotherapyPlan : {};
+  const currentComplementaryExams = isPlainObject(patient.complementaryExams) ? patient.complementaryExams : {};
+  const currentFilterChanges = isPlainObject(patient.filterChanges) ? patient.filterChanges : {};
+  const normalizedSupport =
+    payload?.ventilatorySupport !== undefined
+      ? normalizeVentilatorySupport(payload.ventilatorySupport)
+      : undefined;
+  const updatedBy = normalizeString(payload?.updatedBy) || patient.clinicalUpdatedBy || "Nao informado";
+  const filterChanges = normalizeFilterChanges(payload, currentFilterChanges);
+  const ventilatoryLastChange = filterChanges?.ventilatoryFilter?.lastChangeDateTime ?? null;
 
-  const duplicatedDate = patient.labs.some((lab) => lab.date === normalizedRecord.date);
+  await prisma.$transaction(async (tx) => {
+    await tx.patient.update({
+      where: { id: numericPatientId },
+      data: {
+        ventilatorySupport: normalizedSupport !== undefined ? cleanJson(normalizedSupport) : undefined,
+        mechanicalVentilation:
+          payload?.mechanicalVentilation !== undefined
+            ? cleanJson(mergeDefined(currentMechanicalVentilation, payload.mechanicalVentilation))
+            : undefined,
+        ventilatorParameters:
+          payload?.ventilatorParameters !== undefined
+            ? cleanJson(mergeDefined(currentVentilatorParameters, payload.ventilatorParameters))
+            : undefined,
+        restrictions:
+          payload?.restrictions !== undefined
+            ? cleanJson(mergeDefined(currentRestrictions, {
+                motor: payload.restrictions?.motor !== undefined ? normalizeStringArray(payload.restrictions.motor) : undefined,
+                respiratory: payload.restrictions?.respiratory !== undefined ? normalizeStringArray(payload.restrictions.respiratory) : undefined,
+                mobilization: payload.restrictions?.mobilization !== undefined ? normalizeStringArray(payload.restrictions.mobilization) : undefined,
+                isolation: payload.restrictions?.isolation !== undefined ? normalizeString(payload.restrictions.isolation) : undefined,
+                contraindications:
+                  payload.restrictions?.contraindications !== undefined
+                    ? normalizeStringArray(payload.restrictions.contraindications)
+                    : undefined
+              }))
+            : undefined,
+        physiotherapyPlan:
+          payload?.conducts !== undefined
+            ? cleanJson(mergeDefined(currentPhysiotherapyPlan, {
+                conducts: normalizeStringArray(payload.conducts)
+              }))
+            : undefined,
+        complementaryExams:
+          payload?.complementaryExams !== undefined
+            ? cleanJson(mergeDefined(currentComplementaryExams, normalizeComplementaryExams(payload.complementaryExams)))
+            : undefined,
+        filterChanges: cleanJson(filterChanges),
+        clinicalNotes: payload?.clinicalNotes !== undefined ? String(payload.clinicalNotes ?? "") : undefined,
+        clinicalUpdatedAt: new Date(),
+        clinicalUpdatedBy: updatedBy
+      }
+    });
 
-  if (duplicatedDate) {
-    throw new Error("Ja existe registro laboratorial para esta data.");
+    if (patient.beds?.[0] && normalizedSupport !== undefined) {
+      await tx.bed.update({
+        where: { id: patient.beds[0].id },
+        data: {
+          status: getBedStatusFromSupport(normalizedSupport)
+        }
+      });
+    }
+
+    if (ventilatoryLastChange && patient.admissionMetrics?.id) {
+      await tx.admissionMetrics.update({
+        where: { patientId: numericPatientId },
+        data: {
+          lastFilterChangeDate: new Date(ventilatoryLastChange)
+        }
+      });
+    }
+
+    if (payload?.labs !== undefined) {
+      await tx.lab.deleteMany({
+        where: { patientId: numericPatientId }
+      });
+
+      const labs = normalizeLabs(payload.labs);
+      if (labs.length > 0) {
+        await tx.lab.createMany({
+          data: labs.map((lab) => ({
+            patientId: numericPatientId,
+            ...lab
+          }))
+        });
+      }
+    }
+
+    if (payload?.imaging !== undefined) {
+      await tx.imaging.deleteMany({
+        where: { patientId: numericPatientId }
+      });
+
+      const imaging = normalizeImaging(payload.imaging);
+      if (imaging.length > 0) {
+        await tx.imaging.createMany({
+          data: imaging.map((exam) => ({
+            patientId: numericPatientId,
+            ...exam
+          }))
+        });
+      }
+    }
+  }, {
+    timeout: 15000
+  });
+
+  const updatedPatient = await prisma.patient.findUnique({
+    where: { id: numericPatientId },
+    include: getPatientInclude()
+  });
+
+  if (!updatedPatient) {
+    throw new Error("Dados clinicos salvos, mas nao foi possivel carregar o paciente.");
   }
 
-  const nextId =
-    Math.max(0, ...patients.flatMap((currentPatient) => currentPatient.labs.map((lab) => lab.id ?? 0))) + 1;
-  const createdLab = {
-    id: nextId,
-    ...normalizedRecord
-  };
-
-  patient.labs.unshift(createdLab);
-
-  return createdLab;
+  return mapPatientRecord(updatedPatient);
 }
 
-export function updatePatientLab(patientId, labId, data) {
-  const patient = getPatientRecordById(patientId);
+export async function dischargePatient(patientId, payload) {
+  const bed = await prisma.bed.findFirst({
+    where: {
+      patientId: Number(patientId),
+      occupied: true
+    }
+  });
+
+  if (!bed) {
+    const error = new Error("Paciente nao possui leito ativo para alta/saida.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const patient = await prisma.patient.findUnique({
+    where: { id: Number(patientId) }
+  });
 
   if (!patient) {
-    throw new Error("Paciente nao encontrado.");
+    const error = new Error("Paciente nao encontrado.");
+    error.statusCode = 404;
+    throw error;
   }
 
-  const numericLabId = Number(labId);
-  const labIndex = patient.labs.findIndex((lab) => lab.id === numericLabId);
+  const type = normalizeString(payload?.type).toLowerCase();
+  const dateTime = normalizeString(payload?.dateTime) || new Date().toISOString();
+  const notes = normalizeString(payload?.notes ?? payload?.note);
+  const roomNumber = normalizeString(payload?.roomNumber);
+  const destination = normalizeString(payload?.destination);
 
-  if (labIndex === -1) {
-    throw new Error("Registro laboratorial nao encontrado.");
-  }
-
-  const normalizedRecord = normalizeDailyLabRecord(data);
-  validateDailyLabRecord(normalizedRecord);
-
-  const duplicatedDate = patient.labs.some(
-    (lab, index) => index !== labIndex && lab.date === normalizedRecord.date
-  );
-
-  if (duplicatedDate) {
-    throw new Error("Ja existe registro laboratorial para esta data.");
-  }
-
-  const updatedLab = {
-    id: numericLabId,
-    ...normalizedRecord
-  };
-
-  patient.labs[labIndex] = updatedLab;
-
-  return updatedLab;
-}
-
-export function deletePatientLab(patientId, labId) {
-  const patient = getPatientRecordById(patientId);
-
-  if (!patient) {
-    throw new Error("Paciente nao encontrado.");
-  }
-
-  const numericLabId = Number(labId);
-  const labIndex = patient.labs.findIndex((lab) => lab.id === numericLabId);
-
-  if (labIndex === -1) {
-    throw new Error("Registro laboratorial nao encontrado.");
-  }
-
-  const [deletedLab] = patient.labs.splice(labIndex, 1);
-  return deletedLab;
-}
-
-export function dischargePatient(patientId, data) {
-  const patient = getPatientRecordById(patientId);
-
-  if (!patient) {
-    throw new Error("Paciente nao encontrado.");
-  }
-
-  if (!patient.bedId) {
-    throw new Error("Paciente ja esta sem leito ativo.");
-  }
-
-  const dischargeType = normalizeText(data.type).toLowerCase();
-  const dischargeDateTime = normalizeText(data.dateTime);
-  const note = normalizeText(data.note);
-  const roomNumber = normalizeText(data.roomNumber);
-  const roomBed = normalizeText(data.roomBed);
-  const destination = normalizeText(data.destination);
-
-  if (!dischargeType || !dischargeDateTime) {
-    throw new Error("Campos obrigatorios: type, dateTime");
-  }
-
-  if (!dischargeTypes.includes(dischargeType)) {
+  if (!["casa", "quarto", "transferencia", "obito"].includes(type)) {
     throw new Error("Tipo de saida invalido.");
   }
 
-  const parsedDate = new Date(dischargeDateTime);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    throw new Error("Data e hora da saida invalida.");
+  if (type === "quarto" && !roomNumber) {
+    throw new Error("Informe o numero do quarto de destino.");
   }
 
-  if (dischargeType === "transferencia para quarto" && !roomNumber) {
-    throw new Error("Numero do quarto obrigatorio para transferencia para quarto.");
+  if (type === "transferencia" && !destination) {
+    throw new Error("Informe o destino da transferencia.");
   }
 
-  if (dischargeType === "transferencia" && !destination) {
-    throw new Error("Destino obrigatorio para transferencia.");
-  }
+  const currentClinicalHistory =
+    patient.clinicalHistory && typeof patient.clinicalHistory === "object" ? patient.clinicalHistory : {};
 
-  const currentBedId = patient.bedId;
-  const bed = beds.find((currentBed) => currentBed.id === currentBedId);
-
-  if (!bed) {
-    throw new Error("Leito atual nao encontrado.");
-  }
-
-  bed.occupied = false;
-  bed.status = "Vago";
-  bed.patientId = null;
-  bed.alertCount = 0;
-
-  patient.lastBedId = currentBedId;
-  patient.bedId = null;
-  patient.discharge = {
-    type: dischargeType,
-    dateTime: parsedDate.toISOString(),
-    note,
-    destination:
-      dischargeType === "transferencia para quarto"
-        ? {
-            roomNumber,
-            roomBed
+  await prisma.$transaction(async (tx) => {
+    await tx.patient.update({
+      where: { id: Number(patientId) },
+      data: {
+        clinicalHistory: cleanJson({
+          ...currentClinicalHistory,
+          lastBedId: bed.id,
+          lastBedCode: bed.code,
+          discharge: {
+            type,
+            dateTime,
+            note: notes,
+            destination:
+              type === "quarto"
+                ? {
+                    roomNumber
+                  }
+                : type === "transferencia"
+                  ? {
+                      destination
+                  }
+                  : null
           }
-        : dischargeType === "transferencia"
-          ? {
-              destination
-            }
-          : null
-  };
+        })
+      }
+    });
 
-  return enrichPatientRecord(patient);
+    await tx.bed.update({
+      where: { id: bed.id },
+      data: {
+        occupied: false,
+        patientId: null,
+        status: "Vago"
+      }
+    });
+  }, {
+    timeout: 15000
+  });
+
+  const updatedPatient = await prisma.patient.findUnique({
+    where: { id: Number(patientId) },
+    include: getPatientInclude()
+  });
+
+  if (!updatedPatient) {
+    throw new Error("Alta registrada, mas nao foi possivel carregar o paciente.");
+  }
+
+  return mapPatientRecord(updatedPatient);
+}
+
+export async function getPatientLabs(patientId) {
+  const patient = await prisma.patient.findUnique({
+    where: { id: Number(patientId) }
+  });
+
+  if (!patient) {
+    const error = new Error("Paciente nao encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const labs = await prisma.lab.findMany({
+    where: { patientId: Number(patientId) },
+    orderBy: { date: "desc" }
+  });
+
+  return labs.map((lab) => ({
+    id: lab.id,
+    date: lab.date.toISOString().slice(0, 10),
+    hb: lab.hb ?? "",
+    ht: lab.ht ?? "",
+    leuco: lab.leuco ?? "",
+    bt: lab.bt ?? "",
+    plq: lab.plq ?? "",
+    ur: lab.ur ?? "",
+    cr: lab.cr ?? "",
+    pcr: lab.pcr ?? "",
+    na: lab.na ?? "",
+    k: lab.k ?? "",
+    ca: lab.ca ?? "",
+    ac: lab.lactate ?? "",
+    extraExamName: lab.extraExamName ?? "",
+    extraExamValue: lab.extraExamValue ?? ""
+  }));
+}
+
+export async function createPatientLab(patientId, payload) {
+  const patient = await prisma.patient.findUnique({
+    where: { id: Number(patientId) }
+  });
+
+  if (!patient) {
+    const error = new Error("Paciente nao encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const lab = await prisma.lab.create({
+    data: {
+      patientId: Number(patientId),
+      date: new Date(payload?.date ?? new Date()),
+      hb: payload?.hb || null,
+      ht: payload?.ht || null,
+      leuco: payload?.leuco || null,
+      bt: payload?.bt || null,
+      plq: payload?.plq || null,
+      ur: payload?.ur || null,
+      cr: payload?.cr || null,
+      pcr: payload?.pcr || null,
+      na: payload?.na || null,
+      k: payload?.k || null,
+      ca: payload?.ca || null,
+      lactate: payload?.ac || payload?.lactate || null,
+      extraExamName: payload?.extraExamName || null,
+      extraExamValue: payload?.extraExamValue || null
+    }
+  });
+
+  return {
+    id: lab.id,
+    date: lab.date.toISOString().slice(0, 10),
+    hb: lab.hb ?? "",
+    ht: lab.ht ?? "",
+    leuco: lab.leuco ?? "",
+    bt: lab.bt ?? "",
+    plq: lab.plq ?? "",
+    ur: lab.ur ?? "",
+    cr: lab.cr ?? "",
+    pcr: lab.pcr ?? "",
+    na: lab.na ?? "",
+    k: lab.k ?? "",
+    ca: lab.ca ?? "",
+    ac: lab.lactate ?? "",
+    extraExamName: lab.extraExamName ?? "",
+    extraExamValue: lab.extraExamValue ?? ""
+  };
 }

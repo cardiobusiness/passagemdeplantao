@@ -16,15 +16,21 @@ export function LoginForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
       const response = await login(identifier, password);
       saveSession(response.user, response.token);
-      router.push(getDefaultRouteForRole(response.user.role));
+      router.replace(getDefaultRouteForRole(response.user.role));
       router.refresh();
     } catch (submitError) {
+      console.error("Erro no login:", submitError);
       setError(submitError instanceof Error ? submitError.message : "Nao foi possivel autenticar.");
     } finally {
       setLoading(false);
@@ -32,11 +38,11 @@ export function LoginForm() {
   }
 
   return (
-    <div className={styles.wrapper}>
+    <main className={styles.wrapper}>
       <div className={`${styles.panel} card`}>
         <section className={styles.hero}>
           <span className="pill">Passagem de Plantao</span>
-          <h1>Gestao Inteligente de CTI</h1>
+          <h1>Gestão Inteligente de CTI</h1>
           <p>
             Acesse o mapa de leitos, a ficha completa do paciente, os analytics e a administracao
             de profissionais com controle de perfis em uma experiencia unica e responsiva.
@@ -104,6 +110,6 @@ export function LoginForm() {
           </div>
         </section>
       </div>
-    </div>
+    </main>
   );
 }

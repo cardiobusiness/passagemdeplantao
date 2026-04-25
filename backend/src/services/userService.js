@@ -1,37 +1,11 @@
-import { createHash, randomBytes } from "node:crypto";
-import { teamUsers } from "../data/mockData.js";
+import { randomBytes } from "node:crypto";
+import { prisma } from "../middleware/prismaMiddleware.js";
+import { createPasswordHash, verifyPassword } from "../utils/password.js";
 
 const sessions = new Map();
 
-function hashPasswordWithSalt(password, salt) {
-  return createHash("sha256").update(`${salt}:${password}`).digest("hex");
-}
-
-function createPasswordHash(password) {
-  const normalizedPassword = String(password ?? "").trim();
-
-  if (normalizedPassword.length < 6) {
-    throw new Error("A senha deve ter pelo menos 6 caracteres.");
-  }
-
-  const salt = randomBytes(12).toString("hex");
-  const hash = hashPasswordWithSalt(normalizedPassword, salt);
-
-  return `${salt}$${hash}`;
-}
-
-function verifyPassword(password, storedPasswordHash) {
-  const [salt, storedHash] = String(storedPasswordHash ?? "").split("$");
-
-  if (!salt || !storedHash) {
-    return false;
-  }
-
-  return hashPasswordWithSalt(password, salt) === storedHash;
-}
-
 function sanitizeUser(user) {
-  const { passwordHash, ...safeUser } = user;
+  const { password, ...safeUser } = user;
   return safeUser;
 }
 
@@ -65,36 +39,19 @@ function normalizeLogin(login) {
   return normalizedLogin;
 }
 
-function findUserByIdentifier(identifier) {
+export async function authenticateUser(identifier, password) {
   const normalizedIdentifier = String(identifier ?? "").trim().toLowerCase();
 
-  return teamUsers.find(
-    (user) => user.email.toLowerCase() === normalizedIdentifier || user.login.toLowerCase() === normalizedIdentifier
-  );
-}
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: { mode: 'insensitive', equals: normalizedIdentifier } },
+        { login: { mode: 'insensitive', equals: normalizedIdentifier } }
+      ]
+    }
+  });
 
-function ensureUniqueUserFields(email, login, excludedUserId = null) {
-  const emailAlreadyExists = teamUsers.some(
-    (user) => user.email.toLowerCase() === email && user.id !== excludedUserId
-  );
-
-  if (emailAlreadyExists) {
-    throw new Error("Ja existe um profissional com este e-mail.");
-  }
-
-  const loginAlreadyExists = teamUsers.some(
-    (user) => user.login.toLowerCase() === login && user.id !== excludedUserId
-  );
-
-  if (loginAlreadyExists) {
-    throw new Error("Ja existe um profissional com este login.");
-  }
-}
-
-export function authenticateUser(identifier, password) {
-  const user = findUserByIdentifier(identifier);
-
-  if (!user || !verifyPassword(String(password ?? ""), user.passwordHash)) {
+  if (!user || !(await verifyPassword(password, user.password))) {
     throw new Error("Login ou senha invalidos.");
   }
 
@@ -104,8 +61,8 @@ export function authenticateUser(identifier, password) {
     throw inactiveError;
   }
 
-  const token = `mock-session-${randomBytes(24).toString("hex")}`;
-  sessions.set(token, user.id);
+  const token = `session-${randomBytes(24).toString("hex")}`;
+  sessions.set(token, sanitizeUser(user));
 
   return {
     token,
@@ -114,30 +71,50 @@ export function authenticateUser(identifier, password) {
 }
 
 export function getUserByToken(token) {
-  const userId = sessions.get(token);
-
-  if (!userId) {
-    return null;
-  }
-
-  const user = teamUsers.find((item) => item.id === userId);
-
-  return user ? sanitizeUser(user) : null;
+  const user = sessions.get(token);
+  return user;
 }
 
 export function logoutUser(token) {
   sessions.delete(token);
 }
 
-export function listUsers() {
-  return teamUsers.map(sanitizeUser);
+export async function listUsers() {
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      login: true,
+      email: true,
+      role: true,
+      jobTitle: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  return users;
 }
 
-export function listActiveProfessionals() {
-  return teamUsers.filter((user) => user.isActive).map(sanitizeUser);
+export async function listActiveProfessionals() {
+  const users = await prisma.user.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      name: true,
+      login: true,
+      email: true,
+      role: true,
+      jobTitle: true,
+      isActive: true
+    },
+    orderBy: { name: 'asc' }
+  });
+  return users;
 }
 
-export function createUser(payload) {
+export async function createUser(payload) {
   const name = String(payload?.name ?? "").trim();
   const email = normalizeEmail(payload?.email);
   const login = normalizeLogin(payload?.login);
@@ -154,26 +131,42 @@ export function createUser(payload) {
     throw new Error("Informe o cargo ou funcao.");
   }
 
-  ensureUniqueUserFields(email, login);
+  // Check for duplicates
+  const existingEmail = await prisma.user.findUnique({
+    where: { email }
+  });
 
-  const user = {
-    id: teamUsers.reduce((maxId, item) => Math.max(maxId, item.id), 0) + 1,
-    name,
-    email,
-    login,
-    passwordHash: createPasswordHash(password),
-    jobTitle,
-    role,
-    isActive
-  };
+  if (existingEmail) {
+    throw new Error("Ja existe um profissional com este e-mail.");
+  }
 
-  teamUsers.push(user);
+  const existingLogin = await prisma.user.findUnique({
+    where: { login }
+  });
+
+  if (existingLogin) {
+    throw new Error("Ja existe um profissional com este login.");
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      name,
+      email,
+      login,
+      password: createPasswordHash(password),
+      jobTitle,
+      role,
+      isActive
+    }
+  });
 
   return sanitizeUser(user);
 }
 
-export function updateUser(userId, payload) {
-  const user = teamUsers.find((item) => item.id === Number(userId));
+export async function updateUser(userId, payload) {
+  const user = await prisma.user.findUnique({
+    where: { id: Number(userId) }
+  });
 
   if (!user) {
     const notFoundError = new Error("Profissional nao encontrado.");
@@ -195,23 +188,44 @@ export function updateUser(userId, payload) {
     throw new Error("Informe o cargo ou funcao.");
   }
 
-  ensureUniqueUserFields(email, login, user.id);
-
-  user.name = name;
-  user.email = email;
-  user.login = login;
-  user.jobTitle = jobTitle;
-  user.role = role;
-
-  if (typeof payload?.isActive === "boolean") {
-    user.isActive = payload.isActive;
+  // Check for duplicates
+  if (email !== user.email) {
+    const existingEmail = await prisma.user.findUnique({
+      where: { email }
+    });
+    if (existingEmail) {
+      throw new Error("Ja existe um profissional com este e-mail.");
+    }
   }
 
-  return sanitizeUser(user);
+  if (login !== user.login) {
+    const existingLogin = await prisma.user.findUnique({
+      where: { login }
+    });
+    if (existingLogin) {
+      throw new Error("Ja existe um profissional com este login.");
+    }
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: Number(userId) },
+    data: {
+      name,
+      email,
+      login,
+      jobTitle,
+      role,
+      ...(typeof payload?.isActive === "boolean" && { isActive: payload.isActive })
+    }
+  });
+
+  return sanitizeUser(updated);
 }
 
-export function updateUserStatus(userId, isActive) {
-  const user = teamUsers.find((item) => item.id === Number(userId));
+export async function updateUserStatus(userId, isActive) {
+  const user = await prisma.user.findUnique({
+    where: { id: Number(userId) }
+  });
 
   if (!user) {
     const notFoundError = new Error("Profissional nao encontrado.");
@@ -219,13 +233,18 @@ export function updateUserStatus(userId, isActive) {
     throw notFoundError;
   }
 
-  user.isActive = Boolean(isActive);
+  const updated = await prisma.user.update({
+    where: { id: Number(userId) },
+    data: { isActive: Boolean(isActive) }
+  });
 
-  return sanitizeUser(user);
+  return sanitizeUser(updated);
 }
 
-export function resetUserPassword(userId, password) {
-  const user = teamUsers.find((item) => item.id === Number(userId));
+export async function resetUserPassword(userId, password) {
+  const user = await prisma.user.findUnique({
+    where: { id: Number(userId) }
+  });
 
   if (!user) {
     const notFoundError = new Error("Profissional nao encontrado.");
@@ -233,7 +252,10 @@ export function resetUserPassword(userId, password) {
     throw notFoundError;
   }
 
-  user.passwordHash = createPasswordHash(password);
+  const updated = await prisma.user.update({
+    where: { id: Number(userId) },
+    data: { password: createPasswordHash(password) }
+  });
 
-  return sanitizeUser(user);
+  return sanitizeUser(updated);
 }

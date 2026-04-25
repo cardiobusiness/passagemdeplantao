@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Bed } from "@/lib/types";
+import { formatVentilatorySupport } from "@/lib/ventilatorySupport";
 import styles from "./BedGrid.module.css";
 
 type Props = {
@@ -10,9 +11,13 @@ export function BedGrid({ beds }: Props) {
   return (
     <div className={styles.grid}>
       {beds.map((bed) => {
+        const normalizedStatus = String(bed.status ?? "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
         const stateClass = !bed.occupied
           ? styles.vacant
-          : bed.alertCount > 0 || bed.status === "Atencao"
+          : bed.alertCount > 0 || normalizedStatus === "atencao"
             ? styles.attention
             : styles.occupied;
         const href = bed.patient ? `/patients/${bed.patient.id}` : `/patients/new?bedId=${bed.id}`;
@@ -34,12 +39,12 @@ export function BedGrid({ beds }: Props) {
                   <>
                     <strong>{bed.patient.name}</strong>
                     <p>{bed.patient.diagnosis}</p>
-                    <p>Suporte: {bed.patient.ventilatorySupport}</p>
+                    <p>Suporte: {formatVentilatorySupport(bed.patient.ventilatorySupport)}</p>
                     <div className={styles.metrics}>
-                      <span>Hospital {bed.patient.stayMetrics.hospitalDays ?? "-"}d</span>
-                      <span>CTI {bed.patient.stayMetrics.ctiDays ?? "-"}d</span>
-                      {bed.patient.stayMetrics.mechanicalVentilationDays ? (
-                        <span>VM {bed.patient.stayMetrics.mechanicalVentilationDays}d</span>
+                      <span>Hospital {bed.patient.stayMetrics?.hospitalDays ?? "-"}d</span>
+                      <span>CTI {bed.patient.stayMetrics?.ctiDays ?? "-"}d</span>
+                      {bed.patient.stayMetrics?.mechanicalVentilationDays ? (
+                        <span>VM {bed.patient.stayMetrics?.mechanicalVentilationDays}d</span>
                       ) : null}
                     </div>
                     {bed.patient.filterStatus.status !== "nao_aplicavel" ? (

@@ -47,6 +47,9 @@ export function AdminUsersPage() {
       return;
     }
 
+    setLoading(true);
+    setError("");
+
     try {
       const nextUsers = await getAdminUsers(token);
       setUsers(nextUsers);
@@ -188,7 +191,7 @@ export function AdminUsersPage() {
           <div className={styles.sectionHeader}>
             <div>
               <h2>{editingUserId ? "Editar profissional" : "Novo profissional"}</h2>
-              <p>Somente administradores podem alterar estes dados.</p>
+              <p>Administradores e rotina podem cadastrar, editar e manter os profissionais ativos.</p>
             </div>
           </div>
 
@@ -271,8 +274,8 @@ export function AdminUsersPage() {
         <section className={`${styles.panel} card`}>
           <div className={styles.sectionHeader}>
             <div>
-              <h2>Usuarios cadastrados</h2>
-              <p>{users.length} profissionais em memoria no ambiente atual.</p>
+              <h2>Profissionais cadastrados</h2>
+              <p>{users.length} profissionais cadastrados.</p>
             </div>
           </div>
 

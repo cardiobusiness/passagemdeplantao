@@ -29,8 +29,16 @@ export function requireAuth(req, res, next) {
 }
 
 export function requireAdministrator(req, res, next) {
-  if (req.user?.role !== "administrator") {
+  if (!req.user || req.user.role !== "administrator") {
     return res.status(403).json({ message: "Somente administradores podem acessar esta area." });
+  }
+
+  next();
+}
+
+export function requireAdminManagementAccess(req, res, next) {
+  if (!req.user || !["administrator", "routine"].includes(req.user.role)) {
+    return res.status(403).json({ message: "Somente administradores e rotina podem acessar esta area." });
   }
 
   next();

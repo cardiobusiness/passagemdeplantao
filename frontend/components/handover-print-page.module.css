@@ -148,6 +148,8 @@
 }
 
 .printArea {
+  display: grid;
+  gap: 0.85rem;
   padding: 1rem;
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -155,13 +157,8 @@
   box-shadow: var(--shadow);
 }
 
-.printTable {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.printTable thead th {
-  padding: 0 0 1rem;
+.printHeader {
+  page-break-after: avoid;
 }
 
 .printBanner {
@@ -169,7 +166,7 @@
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
-  padding: 1rem 1.1rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: linear-gradient(135deg, #f8fbfb, #eef7f6);
@@ -178,17 +175,17 @@
 
 .printEyebrow {
   display: inline-flex;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.35rem;
   color: var(--primary-strong);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .printBanner h3 {
-  margin: 0 0 0.4rem;
-  font-size: 1.4rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.2rem;
 }
 
 .printBanner p,
@@ -199,35 +196,52 @@
 
 .printMeta {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.2rem;
   text-align: right;
 }
 
-.printRow td {
-  padding: 0 0 1rem;
+.printGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: start;
 }
 
 .printCard {
-  padding: 1.1rem;
+  padding: 0.8rem;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 16px;
   background: white;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
+.patientCard {
+  min-height: 20rem;
+}
+
 .patientHeader {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.patientIdentity {
+  min-width: 0;
+}
+
+.patientIdentity p {
+  margin: 0.3rem 0 0;
+  color: var(--text-soft);
+  line-height: 1.4;
 }
 
 .bedBadge {
   display: inline-flex;
-  margin-bottom: 0.55rem;
-  padding: 0.35rem 0.7rem;
+  margin-bottom: 0.45rem;
+  padding: 0.3rem 0.65rem;
   border-radius: 999px;
   background: rgba(13, 122, 115, 0.12);
   color: var(--primary-strong);
@@ -236,64 +250,68 @@
 
 .patientHeader h4 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.05rem;
 }
 
 .patientMeta {
   display: grid;
-  gap: 0.3rem;
+  gap: 0.2rem;
   color: var(--text-soft);
   text-align: right;
+  font-size: 0.92rem;
 }
 
 .summaryGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
+  gap: 0.55rem;
 }
 
 .summaryBlock {
-  padding: 0.9rem;
+  padding: 0.65rem;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #f8fbfb;
 }
 
 .summaryBlock span,
 .notesBlock span {
   display: block;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
   color: var(--text-soft);
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .summaryBlock p {
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.45;
+  font-size: 0.92rem;
 }
 
 .notesBlock {
-  margin-top: 1rem;
-  padding: 0.95rem;
+  margin-top: 0.6rem;
+  padding: 0.7rem;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fcfdfd;
 }
 
 .noteLines {
   display: grid;
-  gap: 0.85rem;
-  padding-top: 0.3rem;
+  gap: 0.45rem;
+  padding-top: 0.2rem;
 }
 
 .noteLine {
-  min-height: 1.25rem;
-  border-bottom: 1.4px solid rgba(22, 49, 50, 0.35);
+  min-height: 1rem;
+  border-bottom: 1.2px solid rgba(22, 49, 50, 0.35);
 }
 
-.singleSheetMode .printCard {
-  page-break-after: auto;
+.singleSheetMode .patientCard {
+  min-height: 19rem;
 }
 
 @media (max-width: 1080px) {
@@ -309,11 +327,13 @@
 @media (max-width: 760px) {
   .selectionActions,
   .footerActions,
-  .patientHeader {
+  .patientHeader,
+  .printBanner {
     flex-direction: column;
   }
 
-  .summaryGrid {
+  .summaryGrid,
+  .printGrid {
     grid-template-columns: 1fr;
   }
 
@@ -325,7 +345,8 @@
 
 @media print {
   .controlsPanel,
-  .previewHeader {
+  .previewHeader,
+  .page button {
     display: none !important;
   }
 
@@ -339,18 +360,13 @@
     border: none !important;
     box-shadow: none !important;
     background: white !important;
+    outline: none !important;
   }
 
-  .printTable {
-    width: 100%;
-  }
-
-  .printTable thead {
-    display: table-header-group;
-  }
-
-  .printTable tbody {
-    display: table-row-group;
+  .printHeader {
+    margin-bottom: 8px !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   .printBanner,
@@ -358,24 +374,78 @@
   .summaryBlock,
   .notesBlock {
     background: white !important;
-    border-color: #bcc8c8 !important;
+    border-color: #000 !important;
     box-shadow: none !important;
   }
 
-  .printRow {
-    break-inside: avoid;
+  .printGrid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .patientCard {
+    height: 48vh;
+    min-height: 0;
+    padding: 8px;
+    border: 1px solid #000;
+    border-radius: 0;
+    font-size: 10px;
     page-break-inside: avoid;
-  }
-
-  .printRow td {
-    padding-bottom: 0.8cm;
-  }
-
-  .singleSheetMode .printRow {
+    break-inside: avoid;
     page-break-after: auto;
+    overflow: hidden;
+  }
+
+  .patientHeader {
+    margin-bottom: 6px;
+    gap: 6px;
+  }
+
+  .patientHeader h4 {
+    font-size: 12px;
+  }
+
+  .patientIdentity p,
+  .patientMeta,
+  .summaryBlock p,
+  .printBanner p,
+  .printMeta span {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .bedBadge {
+    margin-bottom: 3px;
+    padding: 2px 6px;
+    background: white !important;
+    border: 1px solid #000;
+    border-radius: 999px;
+  }
+
+  .summaryGrid {
+    gap: 6px;
+  }
+
+  .summaryBlock,
+  .notesBlock {
+    padding: 6px;
+    border-radius: 0;
+  }
+
+  .summaryBlock span,
+  .notesBlock span,
+  .printEyebrow {
+    font-size: 9px;
+  }
+
+  .noteLines {
+    gap: 4px;
   }
 
   .noteLine {
-    border-bottom: 1.5px solid #647374 !important;
+    min-height: 10px;
+    border-bottom: 1px solid #000 !important;
   }
 }

@@ -2,19 +2,19 @@ import { Router } from "express";
 import {
   createPatient,
   createPatientLab,
-  deletePatientLab,
   dischargePatient,
   getPatientById,
   getPatientLabs,
   getPatients,
-  updatePatientLab
+  updatePatientClinicalData
 } from "../services/patientService.js";
 
 const router = Router();
 
-router.get("/", (_req, res) => {
+router.get("/", async (_req, res) => {
   try {
-    res.json(getPatients());
+    const patients = await getPatients();
+    res.json(patients);
   } catch (error) {
     res.status(500).json({
       message: "Nao foi possivel carregar os pacientes.",
@@ -23,81 +23,61 @@ router.get("/", (_req, res) => {
   }
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const patient = getPatientById(req.params.id);
-
-    if (!patient) {
-      return res.status(404).json({ message: "Paciente nao encontrado." });
-    }
-
+    const patient = await getPatientById(req.params.id);
     return res.json(patient);
   } catch (error) {
-    return res.status(500).json({ message: "Nao foi possivel carregar o paciente.", error: error.message });
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({ message: error.message });
   }
 });
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const patient = createPatient(req.body);
+    const patient = await createPatient(req.body);
     return res.status(201).json(patient);
   } catch (error) {
     return res.status(400).json({ message: error.message });
   }
 });
 
-router.get("/:id/labs", (req, res) => {
+router.get("/:id/labs", async (req, res) => {
   try {
-    const labs = getPatientLabs(req.params.id);
+    const labs = await getPatientLabs(req.params.id);
     return res.json(labs);
   } catch (error) {
-    const statusCode = error.message === "Paciente nao encontrado." ? 404 : 400;
+    const statusCode = error.statusCode || 400;
     return res.status(statusCode).json({ message: error.message });
   }
 });
 
-router.post("/:id/labs", (req, res) => {
+router.post("/:id/labs", async (req, res) => {
   try {
-    const lab = createPatientLab(req.params.id, req.body);
+    const lab = await createPatientLab(req.params.id, req.body);
     return res.status(201).json(lab);
   } catch (error) {
-    const statusCode = error.message === "Paciente nao encontrado." ? 404 : 400;
+    const statusCode = error.statusCode || 400;
     return res.status(statusCode).json({ message: error.message });
   }
 });
 
-router.put("/:id/labs/:labId", (req, res) => {
+router.post("/:id/discharge", async (req, res) => {
   try {
-    const lab = updatePatientLab(req.params.id, req.params.labId, req.body);
-    return res.json(lab);
+    const { id } = req.params;
+    const result = await dischargePatient(id, req.body);
+    return res.json(result);
   } catch (error) {
-    const statusCode =
-      error.message === "Paciente nao encontrado." || error.message === "Registro laboratorial nao encontrado."
-        ? 404
-        : 400;
-    return res.status(statusCode).json({ message: error.message });
+    return res.status(400).json({ message: error.message });
   }
 });
 
-router.delete("/:id/labs/:labId", (req, res) => {
+router.patch("/:id/clinical-data", async (req, res) => {
   try {
-    const lab = deletePatientLab(req.params.id, req.params.labId);
-    return res.json(lab);
+    const result = await updatePatientClinicalData(req.params.id, req.body);
+    return res.json(result);
   } catch (error) {
-    const statusCode =
-      error.message === "Paciente nao encontrado." || error.message === "Registro laboratorial nao encontrado."
-        ? 404
-        : 400;
-    return res.status(statusCode).json({ message: error.message });
-  }
-});
-
-router.post("/:id/discharge", (req, res) => {
-  try {
-    const patient = dischargePatient(req.params.id, req.body);
-    return res.json(patient);
-  } catch (error) {
-    const statusCode = error.message === "Paciente nao encontrado." ? 404 : 400;
+    const statusCode = error.statusCode || 400;
     return res.status(statusCode).json({ message: error.message });
   }
 });

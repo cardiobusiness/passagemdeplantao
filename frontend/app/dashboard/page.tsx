@@ -6,6 +6,8 @@ import { PatientHistoryCard } from "@/components/PatientHistoryCard";
 import { PatientLabsModule } from "@/components/PatientLabsModule";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { getBeds, getMonthlyDashboard, getPatients } from "@/lib/api";
+import { Bed, DashboardSummary, Patient } from "@/lib/types";
+import { formatVentilatorySupport } from "@/lib/ventilatorySupport";
 import styles from "@/components/dashboard-shell.module.css";
 
 type Props = {
@@ -14,12 +16,48 @@ type Props = {
   };
 };
 
+const emptyDashboard: DashboardSummary = {
+  month: "Sem dados",
+  occupancyRate: 0,
+  activeAlerts: 0,
+  respiratoryEvolutions: 0,
+  motorEvolutions: 0,
+  averageLengthOfStay: 0,
+  averageAdmissionAge: 0,
+  originStats: [],
+  averageAgeByOrigin: [],
+  examsRegistered: 0
+};
+
+async function loadDashboardData() {
+  const results = await Promise.allSettled([getBeds(), getMonthlyDashboard(), getPatients()]);
+  const [bedsResult, dashboardResult, patientsResult] = results;
+  const errors: string[] = [];
+
+  const beds: Bed[] = bedsResult.status === "fulfilled" ? bedsResult.value : [];
+  if (bedsResult.status === "rejected") {
+    errors.push("Nao foi possivel carregar o mapa de leitos.");
+  }
+
+  const dashboard: DashboardSummary =
+    dashboardResult.status === "fulfilled" && dashboardResult.value
+      ? dashboardResult.value
+      : emptyDashboard;
+  if (dashboardResult.status === "rejected") {
+    errors.push("Nao foi possivel carregar o resumo mensal.");
+  }
+
+  const patients: Patient[] = patientsResult.status === "fulfilled" ? patientsResult.value : [];
+  if (patientsResult.status === "rejected") {
+    errors.push("Nao foi possivel carregar os pacientes.");
+  }
+
+  return { beds, dashboard, patients, errors };
+}
+
 export default async function DashboardPage({ searchParams }: Props) {
-  const [beds, dashboard, patients] = await Promise.all([
-    getBeds(),
-    getMonthlyDashboard(),
-    getPatients()
-  ]);
+  const { beds, dashboard, patients, errors } = await loadDashboardData();
+  const hasPatients = patients.length > 0;
 
   const availableBeds = beds
     .filter((bed) => !bed.occupied)
@@ -54,6 +92,24 @@ export default async function DashboardPage({ searchParams }: Props) {
           </div>
         </header>
 
+        {errors.length ? (
+          <section className={`${styles.section} card`}>
+            <div className={styles.sectionHeader}>
+              <h2>Carregamento parcial</h2>
+            </div>
+            <p className={styles.empty}>
+              Algumas informacoes nao puderam ser carregadas agora. A pagina segue disponivel.
+            </p>
+            <div className={styles.list}>
+              {errors.map((error) => (
+                <p key={error} className={styles.empty}>
+                  {error}
+                </p>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <section className={styles.summaryGrid}>
           <article className={`${styles.summaryCard} card`}>
             <span>Taxa de ocupacao</span>
@@ -87,8 +143,22 @@ export default async function DashboardPage({ searchParams }: Props) {
 
           <div className={styles.rightColumn}>
             <PatientForm availableBeds={availableBeds} />
-            <PatientDischargeCard patients={patients} initialPatientId={initialPatientId} />
-            <PatientLabsModule patients={activePatients} initialPatientId={initialPatientId} />
+
+            {!hasPatients ? (
+              <section className={`${styles.section} card`}>
+                <div className={styles.sectionHeader}>
+                  <h2>Nenhum paciente internado</h2>
+                </div>
+                <p className={styles.empty}>
+                  Os leitos estao disponiveis. Cadastre um novo paciente para liberar alta, exames e historico.
+                </p>
+              </section>
+            ) : (
+              <>
+                <PatientDischargeCard patients={patients} initialPatientId={initialPatientId} />
+                <PatientLabsModule patients={activePatients} initialPatientId={initialPatientId} />
+              </>
+            )}
 
             <section className={`${styles.section} card`}>
               <div className={styles.sectionHeader}>
@@ -101,8 +171,8 @@ export default async function DashboardPage({ searchParams }: Props) {
                       <strong>{patient.name}</strong>
                       <p>{patient.alerts[0]}</p>
                       <div className={styles.statusRow}>
-                        <span>Leito {String(patient.bedId).padStart(2, "0")}</span>
-                        <span>{patient.ventilatorySupport}</span>
+                        <span>{patient.bedCode ?? "Sem leito ativo"}</span>
+                        <span>{formatVentilatorySupport(patient.ventilatorySupport)}</span>
                       </div>
                     </article>
                   ))
@@ -112,7 +182,16 @@ export default async function DashboardPage({ searchParams }: Props) {
               </div>
             </section>
 
-            <PatientHistoryCard patients={patients} />
+            {hasPatients ? (
+              <PatientHistoryCard patients={patients} />
+            ) : (
+              <section className={`${styles.section} card`}>
+                <div className={styles.sectionHeader}>
+                  <h2>Historico recente</h2>
+                </div>
+                <p className={styles.empty}>Nenhum historico disponivel enquanto nao houver pacientes cadastrados.</p>
+              </section>
+            )}
           </div>
         </div>
       </section>

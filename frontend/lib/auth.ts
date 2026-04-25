@@ -18,6 +18,7 @@ export function getStoredUser() {
   try {
     return JSON.parse(rawUser) as User;
   } catch {
+    clearSession();
     return null;
   }
 }
@@ -31,11 +32,19 @@ export function getStoredToken() {
 }
 
 export function saveSession(user: User, token: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
   window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
 }
 
 export function clearSession() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   window.localStorage.removeItem(USER_STORAGE_KEY);
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
 }

@@ -4,10 +4,12 @@ import {
   CreatePatientPayload,
   DashboardSummary,
   DischargePatientPayload,
+  Handover,
   LoginResponse,
   ResetPasswordPayload,
   Patient,
   PatientLab,
+  UpdatePatientClinicalPayload,
   UpdateUserPayload,
   User,
   UserFormPayload
@@ -16,14 +18,20 @@ import {
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://passagemdeplantao.eletrostarsoft.com.br/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiUrl}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers || {})
-    },
-    cache: "no-store"
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiUrl}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers || {})
+      },
+      cache: "no-store"
+    });
+  } catch {
+    throw new Error("Falha de conexao com o backend. Verifique a API, a URL configurada e o CORS.");
+  }
 
   if (!response.ok) {
     let message = `Erro na requisicao: ${response.status}`;
@@ -59,6 +67,10 @@ function withAuthorization(token: string, options?: RequestInit): RequestInit {
 }
 
 export function login(identifier: string, password: string) {
+  const loginUrl = `${apiUrl}/auth/login`;
+
+  console.log("Login API:", loginUrl);
+
   return request<LoginResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ identifier, password })
@@ -88,6 +100,13 @@ export function getPatient(patientId: number) {
 export function createPatient(payload: CreatePatientPayload) {
   return request<Patient>("/patients", {
     method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updatePatientClinicalData(patientId: number, payload: UpdatePatientClinicalPayload) {
+  return request<Patient>(`/patients/${patientId}/clinical-data`, {
+    method: "PATCH",
     body: JSON.stringify(payload)
   });
 }
@@ -156,5 +175,16 @@ export function resetAdminUserPassword(token: string, userId: number, payload: R
   return request<User>(`/admin/users/${userId}/reset-password`, withAuthorization(token, {
     method: "PATCH",
     body: JSON.stringify(payload)
+  }));
+}
+
+export function getHandovers(token: string) {
+  return request<Handover[]>("/handovers", withAuthorization(token));
+}
+
+export function createHandover(token: string, professionalId: number, bedIds: number[]) {
+  return request<Handover>("/handovers", withAuthorization(token, {
+    method: "POST",
+    body: JSON.stringify({ professionalId, bedIds })
   }));
 }

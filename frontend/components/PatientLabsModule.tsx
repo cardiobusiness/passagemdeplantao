@@ -9,6 +9,7 @@ import {
   updatePatientLab
 } from "@/lib/api";
 import { CreatePatientLabPayload, Patient, PatientLab } from "@/lib/types";
+import { formatVentilatorySupport } from "@/lib/ventilatorySupport";
 import styles from "./PatientLabsModule.module.css";
 
 type Props = {
@@ -286,7 +287,7 @@ export function PatientLabsModule({ patients, initialPatientId = null }: Props) 
               >
                 {patients.map((patient) => (
                   <option key={patient.id} value={patient.id}>
-                    {patient.name} - Leito {String(patient.bedId).padStart(2, "0")}
+                    {patient.name} - {patient.bedCode ?? "Sem leito ativo"}
                   </option>
                 ))}
               </select>
@@ -354,7 +355,7 @@ export function PatientLabsModule({ patients, initialPatientId = null }: Props) 
             <div className={styles.patientMeta}>
               <strong>{selectedPatient.name}</strong>
               <span>
-                Prontuario {selectedPatient.recordNumber} | Suporte {selectedPatient.ventilatorySupport}
+                Prontuario {selectedPatient.recordNumber} | Suporte {formatVentilatorySupport(selectedPatient.ventilatorySupport)}
               </span>
             </div>
           ) : null}

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PatientClinicalForm } from "@/components/PatientClinicalForm";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { getPatient } from "@/lib/api";
 import { Patient } from "@/lib/types";
+import { formatVentilatorySupport, isMechanicalVentilationType } from "@/lib/ventilatorySupport";
 import styles from "./patient-detail.module.css";
 
 type Props = {
@@ -43,21 +45,21 @@ function getCurrentStatus(patient: Patient) {
     return `Saida registrada: ${patient.discharge.type}`;
   }
 
-  return patient.ventilatorySupport === "VMI" || patient.mechanicalVentilation
+  return isMechanicalVentilationType(patient.ventilatorySupport.type) || patient.mechanicalVentilation
     ? "Internado em suporte ventilatorio"
     : "Internado em acompanhamento fisioterapeutico";
 }
 
 function getChestXray(imaging: Patient["imaging"]) {
-  return imaging.filter((exam) => exam.type.toLowerCase().includes("rx"));
+  return imaging.filter((exam) => exam.type.toLowerCase().includes("rx") || exam.type.toLowerCase().includes("radio"));
 }
 
 function getOtherImaging(imaging: Patient["imaging"]) {
-  return imaging.filter((exam) => !exam.type.toLowerCase().includes("rx"));
+  return imaging.filter((exam) => !exam.type.toLowerCase().includes("rx") && !exam.type.toLowerCase().includes("radio"));
 }
 
 function renderList(items: string[]) {
-  return items.length ? items.join(" • ") : "Sem registro.";
+  return items.length ? items.join(" - ") : "Sem registro.";
 }
 
 function renderMetric(value: number | null, unit = "dias") {
@@ -66,6 +68,10 @@ function renderMetric(value: number | null, unit = "dias") {
   }
 
   return `${value} ${unit}`;
+}
+
+function getBedLabel(patient: Patient) {
+  return patient.bedCode ?? patient.lastBedCode ?? "Sem leito ativo";
 }
 
 const labFieldLabels = [
@@ -120,9 +126,7 @@ export default async function PatientDetailPage({ params }: Props) {
       <section className={styles.page}>
         <header className={styles.header}>
           <div>
-            <span className="pill">
-              CTI 1 · {patient.bedId ? `Leito ${String(patient.bedId).padStart(2, "0")}` : "Historico de paciente"}
-            </span>
+            <span className="pill">CTI 1 - {patient.bedId ? getBedLabel(patient) : "Historico de paciente"}</span>
             <h1>{patient.name}</h1>
             <p>{patient.diagnosis}</p>
           </div>
@@ -156,9 +160,7 @@ export default async function PatientDetailPage({ params }: Props) {
               </div>
               <div>
                 <span>Leito</span>
-                <strong>
-                  {patient.bedId ? `L${100 + patient.bedId}` : `Ultimo leito L${100 + (patient.lastBedId ?? 0)}`}
-                </strong>
+                <strong>{patient.bedId ? getBedLabel(patient) : patient.lastBedCode ?? "Sem leito ativo"}</strong>
               </div>
               <div>
                 <span>Admissao</span>
@@ -166,7 +168,7 @@ export default async function PatientDetailPage({ params }: Props) {
               </div>
               <div>
                 <span>Dias de internacao no CTI</span>
-                <strong>{renderMetric(patient.stayMetrics.ctiDays)}</strong>
+                <strong>{renderMetric(patient.stayMetrics?.ctiDays ?? null)}</strong>
               </div>
               <div>
                 <span>Status atual</span>
@@ -189,9 +191,9 @@ export default async function PatientDetailPage({ params }: Props) {
               <a className={styles.actionButton} href="#identificacao">
                 Editar paciente
               </a>
-              <Link className={styles.actionButton} href="#exames">
-                Registrar exame
-              </Link>
+              <a className={styles.actionButton} href="#ficha-clinica">
+                Ficha clinica
+              </a>
               <a className={styles.actionButton} href="#ventilacao">
                 Registrar ventilacao
               </a>
@@ -205,6 +207,10 @@ export default async function PatientDetailPage({ params }: Props) {
           </article>
         </section>
 
+        <div id="ficha-clinica">
+          <PatientClinicalForm patient={patient} />
+        </div>
+
         <div className={styles.detailGrid}>
           <section id="exames" className={`${styles.section} card`}>
             <div className={styles.sectionHeader}>
@@ -213,28 +219,28 @@ export default async function PatientDetailPage({ params }: Props) {
             <div className={styles.identityGrid}>
               <div>
                 <span>Dias de internacao hospitalar</span>
-                <strong>{renderMetric(patient.stayMetrics.hospitalDays)}</strong>
+                <strong>{renderMetric(patient.stayMetrics?.hospitalDays ?? null)}</strong>
               </div>
               <div>
                 <span>Dias de internacao no CTI</span>
-                <strong>{renderMetric(patient.stayMetrics.ctiDays)}</strong>
+                <strong>{renderMetric(patient.stayMetrics?.ctiDays ?? null)}</strong>
               </div>
               <div>
                 <span>Dias de ventilacao mecanica</span>
-                <strong>{renderMetric(patient.stayMetrics.mechanicalVentilationDays)}</strong>
+                <strong>{renderMetric(patient.stayMetrics?.mechanicalVentilationDays ?? null)}</strong>
               </div>
               <div>
                 <span>Dias de IOT</span>
-                <strong>{renderMetric(patient.stayMetrics.iotDays)}</strong>
+                <strong>{renderMetric(patient.stayMetrics?.iotDays ?? null)}</strong>
               </div>
               <div>
                 <span>Dias de TQT</span>
-                <strong>{renderMetric(patient.stayMetrics.tqtDays)}</strong>
+                <strong>{renderMetric(patient.stayMetrics?.tqtDays ?? null)}</strong>
               </div>
               <div>
                 <span>Tempo de extubacao</span>
                 <strong>
-                  {patient.stayMetrics.extubationHours !== null
+                  {patient.stayMetrics?.extubationHours !== null && patient.stayMetrics?.extubationHours !== undefined
                     ? `${patient.stayMetrics.extubationHours} horas`
                     : "Sem registro."}
                 </strong>
@@ -293,13 +299,13 @@ export default async function PatientDetailPage({ params }: Props) {
                 <div><span>Tipo de suporte</span><strong>{patient.mechanicalVentilation.typeOfSupport}</strong></div>
                 <div><span>Via aerea</span><strong>{patient.mechanicalVentilation.airway}</strong></div>
                 <div><span>TOT/TQT</span><strong>{patient.mechanicalVentilation.totTqt}</strong></div>
-                <div><span>Modo ventilatorio</span><strong>{patient.mechanicalVentilation.ventilatoryMode}</strong></div>
-                <div><span>FiO2</span><strong>{patient.mechanicalVentilation.fio2}</strong></div>
-                <div><span>PEEP</span><strong>{patient.mechanicalVentilation.peep}</strong></div>
-                <div><span>Volume corrente</span><strong>{patient.mechanicalVentilation.tidalVolume}</strong></div>
-                <div><span>Pressao inspiratoria</span><strong>{patient.mechanicalVentilation.inspiratoryPressure}</strong></div>
-                <div><span>FR programada</span><strong>{patient.mechanicalVentilation.programmedRespiratoryRate}</strong></div>
-                <div><span>Cuff</span><strong>{patient.mechanicalVentilation.cuff}</strong></div>
+                <div><span>Modo ventilatorio</span><strong>{patient.ventilatorParameters.mode || patient.mechanicalVentilation.ventilatoryMode}</strong></div>
+                <div><span>FiO2</span><strong>{patient.ventilatorParameters.fio2 || patient.mechanicalVentilation.fio2}</strong></div>
+                <div><span>PEEP</span><strong>{patient.ventilatorParameters.peep || patient.mechanicalVentilation.peep}</strong></div>
+                <div><span>Volume corrente</span><strong>{patient.ventilatorParameters.tidalVolume || patient.mechanicalVentilation.tidalVolume}</strong></div>
+                <div><span>Pressao suporte</span><strong>{patient.ventilatorParameters.pressureSupport || patient.mechanicalVentilation.inspiratoryPressure}</strong></div>
+                <div><span>FR programada</span><strong>{patient.ventilatorParameters.respiratoryRate || patient.mechanicalVentilation.programmedRespiratoryRate}</strong></div>
+                <div><span>Saturacao alvo</span><strong>{patient.ventilatorParameters.targetSaturation || "Sem registro."}</strong></div>
                 <div className={styles.fullRow}>
                   <span>Observacoes</span>
                   <strong>{patient.mechanicalVentilation.observations || "Sem observacoes."}</strong>
@@ -376,7 +382,7 @@ export default async function PatientDetailPage({ params }: Props) {
                 {patient.bloodGas.length ? (
                   patient.bloodGas.map((exam, index) => (
                     <p key={`${exam.date}-${index}`}>
-                      {exam.date} · pH {exam.ph} | PaO2 {exam.pao2} | PaCO2 {exam.paco2} | HCO3 {exam.hco3}
+                      {exam.date} - pH {exam.ph} | PaO2 {exam.pao2} | PaCO2 {exam.paco2} | HCO3 {exam.hco3}
                     </p>
                   ))
                 ) : (
@@ -387,7 +393,7 @@ export default async function PatientDetailPage({ params }: Props) {
                 <span>Radiografia de torax</span>
                 {chestXray.length ? (
                   chestXray.map((exam, index) => (
-                    <p key={`${exam.type}-${exam.date}-${index}`}>{exam.date} · {exam.result}</p>
+                    <p key={`${exam.type}-${exam.date}-${index}`}>{exam.date} - {exam.result}</p>
                   ))
                 ) : (
                   <p>Sem radiografia registrada.</p>
@@ -395,9 +401,9 @@ export default async function PatientDetailPage({ params }: Props) {
               </article>
               <article className={styles.infoBlock}>
                 <span>Tomografia e outros exames</span>
-                {otherImaging.length ? (
-                  otherImaging.map((exam, index) => (
-                    <p key={`${exam.type}-${exam.date}-${index}`}>{exam.date} · {exam.type}: {exam.result}</p>
+                {[...patient.complementaryExams.tomography, ...patient.complementaryExams.other, ...otherImaging].length ? (
+                  [...patient.complementaryExams.tomography, ...patient.complementaryExams.other, ...otherImaging].map((exam, index) => (
+                    <p key={`${exam.type}-${exam.date}-${index}`}>{exam.date} - {exam.type}: {exam.result}</p>
                   ))
                 ) : (
                   <p>Sem tomografia ou outros exames registrados.</p>
@@ -432,7 +438,7 @@ export default async function PatientDetailPage({ params }: Props) {
                 {patient.evolutions.length ? (
                   patient.evolutions.map((evolution, index) => (
                     <p key={`${evolution.date}-${index}`}>
-                      {evolution.date} · {evolution.type} · {evolution.professional}: {evolution.note}
+                      {evolution.date} - {evolution.type} - {evolution.professional}: {evolution.note}
                     </p>
                   ))
                 ) : (
@@ -447,7 +453,7 @@ export default async function PatientDetailPage({ params }: Props) {
               <h2>Observacoes do Plantao</h2>
             </div>
             <p className={styles.notesIntro}>
-              Espaco destinado a anotacoes manuais durante a passagem de plantao impressa.
+              {patient.clinicalNotes || "Espaco destinado a anotacoes manuais durante a passagem de plantao impressa."}
             </p>
             <div className={styles.notesLines} aria-hidden="true">
               {shiftObservationLines.map((line) => (

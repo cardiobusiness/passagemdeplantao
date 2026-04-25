@@ -2,6 +2,12 @@
   padding: 1.2rem;
 }
 
+.formHighlight {
+  outline: 2px solid rgba(179, 75, 47, 0.35);
+  box-shadow: 0 0 0 6px rgba(179, 75, 47, 0.12);
+  transition: box-shadow 0.25s ease, outline-color 0.25s ease;
+}
+
 .header {
   display: flex;
   justify-content: space-between;

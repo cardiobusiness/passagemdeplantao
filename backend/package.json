@@ -6,13 +6,25 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "build": "node -e \"console.log('Backend build step not required in this initial setup.')\""
+    "build": "node -e \"console.log('Backend build step not required in this initial setup.')\"",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:generate": "prisma generate",
+    "prisma:seed": "node prisma/seed.js",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "prisma": "^6.19.3"
+  },
+  "devDependencies": {
+    "supabase": "^2.95.1",
+    "tsx": "^4.21.0"
   }
 }

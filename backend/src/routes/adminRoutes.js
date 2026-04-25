@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAdministrator, requireAuth } from "../middleware/authMiddleware.js";
+import { requireAdminManagementAccess, requireAuth } from "../middleware/authMiddleware.js";
 import {
   createUser,
   listUsers,
@@ -10,42 +10,47 @@ import {
 
 const router = Router();
 
-router.use(requireAuth, requireAdministrator);
+router.use(requireAuth, requireAdminManagementAccess);
 
-router.get("/users", (_req, res) => {
-  return res.json(listUsers());
+router.get("/users", async (_req, res) => {
+  try {
+    const users = await listUsers();
+    return res.json(users);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
 });
 
-router.post("/users", (req, res) => {
+router.post("/users", async (req, res) => {
   try {
-    const user = createUser(req.body);
+    const user = await createUser(req.body);
     return res.status(201).json(user);
   } catch (error) {
     return res.status(error.statusCode ?? 400).json({ message: error.message });
   }
 });
 
-router.put("/users/:id", (req, res) => {
+router.put("/users/:id", async (req, res) => {
   try {
-    const user = updateUser(req.params.id, req.body);
+    const user = await updateUser(req.params.id, req.body);
     return res.json(user);
   } catch (error) {
     return res.status(error.statusCode ?? 400).json({ message: error.message });
   }
 });
 
-router.patch("/users/:id/status", (req, res) => {
+router.patch("/users/:id/status", async (req, res) => {
   try {
-    const user = updateUserStatus(req.params.id, req.body?.isActive);
+    const user = await updateUserStatus(req.params.id, req.body?.isActive);
     return res.json(user);
   } catch (error) {
     return res.status(error.statusCode ?? 400).json({ message: error.message });
   }
 });
 
-router.patch("/users/:id/reset-password", (req, res) => {
+router.patch("/users/:id/reset-password", async (req, res) => {
   try {
-    const user = resetUserPassword(req.params.id, req.body?.password);
+    const user = await resetUserPassword(req.params.id, req.body?.password);
     return res.json(user);
   } catch (error) {
     return res.status(error.statusCode ?? 400).json({ message: error.message });

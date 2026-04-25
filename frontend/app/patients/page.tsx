@@ -33,14 +33,14 @@ export default async function PatientsPage() {
                     <strong>{patient.name}</strong>
                     <span>{patient.recordNumber}</span>
                   </div>
-                  <span className="pill">{patient.bedId ? `L${100 + patient.bedId}` : "Sem leito"}</span>
+                  <span className="pill">{patient.bedCode ?? "Sem leito ativo"}</span>
                 </div>
 
                 <div className={styles.meta}>
                   <span>{patient.age} anos</span>
                   <span>{patient.diagnosis}</span>
-                  <span>CTI: {patient.stayMetrics.ctiDays ?? 0} dias</span>
-                  <span>VM: {patient.stayMetrics.mechanicalVentilationDays ?? 0} dias</span>
+                  <span>CTI: {patient.stayMetrics?.ctiDays ?? 0} dias</span>
+                  <span>VM: {patient.stayMetrics?.mechanicalVentilationDays ?? 0} dias</span>
                 </div>
 
                 <p className={styles.summary}>{patient.reasonForAdmission}</p>

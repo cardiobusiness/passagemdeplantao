@@ -69,3 +69,10 @@ CREATE TABLE IF NOT EXISTS physiotherapy_evolutions (
   note TEXT NOT NULL,
   recorded_at TIMESTAMP NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS handovers (
+  id SERIAL PRIMARY KEY,
+  professional_id INTEGER NOT NULL REFERENCES physiotherapists(id),
+  bed_ids INTEGER[] NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -19,7 +19,7 @@ export type AppRouteKey = keyof typeof routeLabels;
 const permissionMap: Record<string, AppRouteKey[]> = {
   administrator: ["dashboard", "analytics", "patients", "patientCreate", "handover", "admin"],
   coordinator: ["dashboard", "analytics", "patients", "patientCreate", "handover"],
-  routine: ["dashboard", "analytics", "patients", "patientCreate", "handover"],
+  routine: ["dashboard", "analytics", "patients", "patientCreate", "handover", "admin"],
   oncall: ["patients", "handover"]
 };
 

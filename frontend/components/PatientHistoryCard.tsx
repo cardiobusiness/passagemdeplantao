@@ -1,4 +1,5 @@
 import { Patient } from "@/lib/types";
+import { formatVentilatorySupport } from "@/lib/ventilatorySupport";
 import styles from "./PatientHistoryCard.module.css";
 
 type Props = {
@@ -16,18 +17,9 @@ export function PatientHistoryCard({ patients }: Props) {
           <article key={patient.id} className={styles.patientItem}>
             <strong>{patient.name}</strong>
             <p>{patient.diagnosis}</p>
-            <p>
-              Prontuario {patient.recordNumber} • Leito{" "}
-              {String(patient.bedId ?? patient.lastBedId ?? 0).padStart(2, "0")}
-            </p>
-            <p>
-              Respiratorio: {patient.ventilatorySupport} • Motor: {patient.mobilityLevel}
-            </p>
-            <p>
-              {patient.discharge
-                ? `Saida registrada: ${patient.discharge.type}`
-                : "Paciente internado em CTI 1"}
-            </p>
+            <p>Prontuario {patient.recordNumber} - {patient.bedCode ?? patient.lastBedCode ?? "Sem leito ativo"}</p>
+            <p>Respiratorio: {formatVentilatorySupport(patient.ventilatorySupport)} - Motor: {patient.mobilityLevel}</p>
+            <p>{patient.discharge ? `Saida registrada: ${patient.discharge.type}` : "Paciente internado em CTI 1"}</p>
           </article>
         ))}
       </div>

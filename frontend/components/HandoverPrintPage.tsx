@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getStoredToken } from "@/lib/auth";
-import { getActiveProfessionals } from "@/lib/api";
+import { getActiveProfessionals, createHandover } from "@/lib/api";
 import { Bed, Patient, User } from "@/lib/types";
 import styles from "./handover-print-page.module.css";
 
@@ -131,6 +131,7 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
   const patientById = useMemo(() => new Map(patients.map((patient) => [patient.id, patient])), [patients]);
 
   const [professionals, setProfessionals] = useState<User[]>([]);
+  const [loadingProfessionals, setLoadingProfessionals] = useState(false);
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<number | null>(null);
   const [selectedBedIds, setSelectedBedIds] = useState<number[]>([]);
   const [selectionInput, setSelectionInput] = useState("");
@@ -148,15 +149,21 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
         return;
       }
 
+      setLoadingProfessionals(true);
       try {
         const nextProfessionals = await getActiveProfessionals(token);
+        setError("");
         setProfessionals(nextProfessionals);
 
         if (nextProfessionals.length > 0) {
           setSelectedProfessionalId((current) => current ?? nextProfessionals[0].id);
+        } else {
+          setSelectedProfessionalId(null);
         }
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Nao foi possivel carregar os profissionais.");
+      } finally {
+        setLoadingProfessionals(false);
       }
     }
 
@@ -242,8 +249,21 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
   }
 
   function handlePrint() {
-    setPreviewMode(true);
-    window.setTimeout(() => window.print(), 120);
+    const token = getStoredToken();
+
+    if (!token || !selectedProfessional) {
+      setError("Sessao expirada ou profissional nao selecionado.");
+      return;
+    }
+
+    createHandover(token, selectedProfessional.id, selectedBedIds)
+      .then(() => {
+        setPreviewMode(true);
+        window.setTimeout(() => window.print(), 120);
+      })
+      .catch((submissionError) => {
+        setError(submissionError.message || "Erro ao salvar passagem de plantao.");
+      });
   }
 
   return (
@@ -273,8 +293,15 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
             <select
               value={selectedProfessionalId ?? ""}
               onChange={(event) => setSelectedProfessionalId(Number(event.target.value) || null)}
+              disabled={loadingProfessionals || professionals.length === 0}
             >
-              <option value="">Selecione um profissional</option>
+              <option value="">
+                {loadingProfessionals
+                  ? "Carregando profissionais..."
+                  : professionals.length === 0
+                    ? "Nenhum profissional cadastrado"
+                    : "Selecione um profissional"}
+              </option>
               {professionals.map((professional) => (
                 <option key={professional.id} value={professional.id}>
                   {professional.name} - {professional.jobTitle}
@@ -282,6 +309,10 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
               ))}
             </select>
           </label>
+
+          {!loadingProfessionals && professionals.length === 0 ? (
+            <p className={styles.info}>Nenhum profissional cadastrado.</p>
+          ) : null}
 
           <label className={styles.field}>
             <span>Leitos por sequencia ou individual</span>
@@ -338,7 +369,11 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
           {error ? <p className={styles.error}>{error}</p> : null}
 
           <div className={styles.footerActions}>
-            <button type="button" className={styles.secondaryButton} onClick={() => setPreviewMode((current) => !current)}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => setPreviewMode((current) => !current)}
+            >
               {previewMode ? "Ocultar visualizacao" : "Visualizar impressao"}
             </button>
             <button
@@ -368,88 +403,79 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
             <div className={`${styles.emptyState} card`}>Nenhum paciente encontrado.</div>
           ) : (
             <div className={`${styles.printArea} ${singleSheetMode ? styles.singleSheetMode : ""}`}>
-              <table className={styles.printTable}>
-                <thead>
-                  <tr>
-                    <th>
-                      <div className={styles.printBanner}>
-                        <div>
-                          <span className={styles.printEyebrow}>Passagem de Plantao</span>
-                          <h3>Gestao Inteligente de CTI</h3>
-                          <p>
-                            Profissional: {selectedProfessional.name} • {selectedProfessional.jobTitle}
-                          </p>
+              <div className={`${styles.printBanner} ${styles.printHeader}`}>
+                <div>
+                  <span className={styles.printEyebrow}>Passagem de Plantao</span>
+                  <h3>Gestao Inteligente de CTI</h3>
+                  <p>
+                    Profissional: {selectedProfessional.name} • {selectedProfessional.jobTitle}
+                  </p>
+                </div>
+                <div className={styles.printMeta}>
+                  <strong>Impressao</strong>
+                  <span>{formatPrintDate()}</span>
+                </div>
+              </div>
+
+              <div className={styles.printGrid}>
+                {selectedBeds.map((bed) => {
+                  const patient = bed.patientId ? patientById.get(bed.patientId) : null;
+
+                  if (!patient) {
+                    return null;
+                  }
+
+                  return (
+                    <article key={bed.id} className={`${styles.printCard} ${styles.patientCard}`}>
+                      <header className={styles.patientHeader}>
+                        <div className={styles.patientIdentity}>
+                          <span className={styles.bedBadge}>{bed.code}</span>
+                          <h4>{patient.name || "Nao informado"}</h4>
+                          <p>{patient.diagnosis || "Diagnostico nao informado"}</p>
                         </div>
-                        <div className={styles.printMeta}>
-                          <strong>Impressao</strong>
-                          <span>{formatPrintDate()}</span>
+
+                        <div className={styles.patientMeta}>
+                          <span>Registro: {patient.recordNumber || "Nao informado"}</span>
+                          <span>Idade: {patient.age ? `${patient.age} anos` : "Nao informado"}</span>
+                          <span>CTI: {formatMetric(patient.stayMetrics?.ctiDays ?? null, "dias")}</span>
+                          <span>VM: {formatMetric(patient.stayMetrics?.mechanicalVentilationDays ?? null, "dias")}</span>
                         </div>
+                      </header>
+
+                      <div className={styles.summaryGrid}>
+                        <section className={styles.summaryBlock}>
+                          <span>Historico clinico</span>
+                          <p>{getClinicalSummary(patient)}</p>
+                        </section>
+
+                        <section className={styles.summaryBlock}>
+                          <span>Suporte / conduta</span>
+                          <p>{getTherapeuticConduct(patient)}</p>
+                        </section>
+
+                        <section className={styles.summaryBlock}>
+                          <span>Laboratorio</span>
+                          <p>{getLatestLabSummary(patient)}</p>
+                        </section>
+
+                        <section className={styles.summaryBlock}>
+                          <span>Imagem</span>
+                          <p>{getLatestChestXray(patient)}</p>
+                        </section>
                       </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedBeds.map((bed) => {
-                    const patient = bed.patientId ? patientById.get(bed.patientId) : null;
 
-                    if (!patient) {
-                      return null;
-                    }
-
-                    return (
-                      <tr key={bed.id} className={styles.printRow}>
-                        <td>
-                          <article className={styles.printCard}>
-                            <header className={styles.patientHeader}>
-                              <div>
-                                <span className={styles.bedBadge}>{bed.code}</span>
-                                <h4>{patient.name || "Nao informado"}</h4>
-                              </div>
-                              <div className={styles.patientMeta}>
-                                <span>Registro: {patient.recordNumber || "Nao informado"}</span>
-                                <span>Idade: {patient.age ? `${patient.age} anos` : "Nao informado"}</span>
-                                <span>Tempo CTI: {formatMetric(patient.stayMetrics.ctiDays, "dias")}</span>
-                                <span>Tempo VM: {formatMetric(patient.stayMetrics.mechanicalVentilationDays, "dias")}</span>
-                              </div>
-                            </header>
-
-                            <div className={styles.summaryGrid}>
-                              <section className={styles.summaryBlock}>
-                                <span>Resumo do historico clinico</span>
-                                <p>{getClinicalSummary(patient)}</p>
-                              </section>
-
-                              <section className={styles.summaryBlock}>
-                                <span>Conduta terapeutica</span>
-                                <p>{getTherapeuticConduct(patient)}</p>
-                              </section>
-
-                              <section className={styles.summaryBlock}>
-                                <span>Laboratorio</span>
-                                <p>{getLatestLabSummary(patient)}</p>
-                              </section>
-
-                              <section className={styles.summaryBlock}>
-                                <span>Relato da radiografia</span>
-                                <p>{getLatestChestXray(patient)}</p>
-                              </section>
-                            </div>
-
-                            <section className={styles.notesBlock}>
-                              <span>Observações</span>
-                              <div className={styles.noteLines}>
-                                {noteLines.map((line) => (
-                                  <div key={`${bed.id}-note-line-${line}`} className={styles.noteLine} />
-                                ))}
-                              </div>
-                            </section>
-                          </article>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                      <section className={styles.notesBlock}>
+                        <span>Observacoes</span>
+                        <div className={styles.noteLines}>
+                          {noteLines.map((line) => (
+                            <div key={`${bed.id}-note-line-${line}`} className={styles.noteLine} />
+                          ))}
+                        </div>
+                      </section>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>
