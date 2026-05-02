@@ -11,6 +11,7 @@ import handoverRoutes from "./routes/handoverRoutes.js";
 import organizationRoutes from "./routes/organizationRoutes.js";
 import patientRoutes from "./routes/patientRoutes.js";
 import sectorRoutes from "./routes/sectorRoutes.js";
+import signupRoutes from "./routes/signupRoutes.js";
 import { checkDatabaseConnection } from "./config/database.js";
 
 dotenv.config();
@@ -41,6 +42,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/beds", bedRoutes);
 app.use("/api/organization", organizationRoutes);
 app.use("/api/sectors", sectorRoutes);
+app.use("/api/signup", signupRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/handovers", handoverRoutes);

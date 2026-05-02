@@ -73,11 +73,17 @@ async function getSectorForBed(sectorId, organizationId) {
 }
 
 export async function getBeds(organizationId, sectorIds) {
-  const beds = await prisma.bed.findMany({
-    where: activeBedWhere(organizationId, sectorIds),
-    include: getBedInclude(organizationId, sectorIds),
-    orderBy: [{ sectorName: "asc" }, { code: "asc" }]
-  });
+ const beds = await prisma.bed.findMany({
+  where: {
+    organizationId: req.user.organizationId,
+    sectorId: {
+      in: req.user.sectorIds
+    }
+  },
+  include: {
+    patient: true
+  }
+});
 
   return beds.map(mapBedRecord);
 }
