@@ -46,6 +46,8 @@ const initialForm: SignupForm = {
   state: ""
 };
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://passagemdeplantao.eletrostarsoft.com.br/api";
+
 const professionCouncil: Record<string, string> = {
   Fisioterapeuta: "CREFITO",
   Enfermeiro: "COREN",
@@ -137,7 +139,7 @@ export default function SignupPage() {
     setSuccess("");
 
     try {
-      const response = await fetch("http://localhost:4000/api/signup", {
+      const response = await fetch(`${apiUrl}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

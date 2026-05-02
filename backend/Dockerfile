@@ -1,17 +1,22 @@
 FROM node:22-alpine
+
 WORKDIR /app
 
-# Install production dependencies only
-COPY package.json package-lock.json ./
-COPY frontend/package.json ./frontend/
-COPY backend/package.json ./backend/
-RUN npm ci --omit=dev
+RUN apk add --no-cache openssl
 
-# Copy backend code
-COPY backend/ ./backend/
+COPY package*.json ./
+COPY prisma ./prisma
+
+ARG PRISMA_DATABASE_URL=postgresql://user:password@localhost:5432/cti
+ARG PRISMA_DIRECT_URL=postgresql://user:password@localhost:5432/cti
+
+RUN npm ci --omit=dev \
+  && DATABASE_URL="$PRISMA_DATABASE_URL" DIRECT_URL="$PRISMA_DIRECT_URL" npx prisma generate \
+  && npm cache clean --force
+
+COPY src ./src
 
 ENV NODE_ENV=production
 EXPOSE 4000
 
-# Start backend using the root package.json script
-CMD ["npm", "run", "start:backend"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]

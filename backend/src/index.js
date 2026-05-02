@@ -18,9 +18,19 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Origem nao permitida pelo CORS."));
+  },
   credentials: true
 }));
 app.use(helmet());

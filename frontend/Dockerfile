@@ -1,30 +1,38 @@
-FROM node:22-alpine AS builder
+FROM node:22-alpine AS deps
+
 WORKDIR /app
 
-# Install dependencies
-COPY package.json package-lock.json ./
-COPY frontend/package.json ./frontend/
-COPY backend/package.json ./backend/
+COPY package*.json ./
 RUN npm ci
 
-# Copy the frontend code and build it
-COPY frontend/ ./frontend/
-RUN npm run build --workspace frontend
+FROM node:22-alpine AS builder
 
-# Final stage
+WORKDIR /app
+
+ARG NEXT_PUBLIC_API_URL=https://passagemdeplantao.eletrostarsoft.com.br/api
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+RUN npm run build
+
 FROM node:22-alpine AS runner
+
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
 
-# Copy necessary files from the builder
-COPY --from=builder /app/package.json /app/package-lock.json ./
-COPY --from=builder /app/frontend/package.json ./frontend/package.json
-COPY --from=builder /app/backend/package.json ./backend/package.json
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/frontend ./frontend
+COPY package*.json ./
+RUN npm ci --omit=dev \
+  && npm cache clean --force
+
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
 EXPOSE 3000
 
-# Start frontend using the root package.json script
-CMD ["npm", "run", "start:frontend"]
+CMD ["npm", "start"]
