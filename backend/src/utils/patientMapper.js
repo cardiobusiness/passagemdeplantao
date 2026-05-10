@@ -215,6 +215,7 @@ export function mapPatientRecord(patient) {
     organizationId: patient.organizationId,
     name: patient.name,
     recordNumber: patient.recordNumber,
+    healthInsurance: patient.healthInsurance ?? "",
     age: patient.age,
     diagnosis: patient.diagnosis,
     origin: patient.origin ?? null,

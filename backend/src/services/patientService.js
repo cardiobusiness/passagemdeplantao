@@ -329,6 +329,7 @@ export async function getPatientById(patientId, organizationId, sectorIds) {
 export async function createPatient(payload, organizationId, sectorIds) {
   const name = normalizeString(payload?.name);
   const recordNumber = normalizeString(payload?.recordNumber);
+  const healthInsurance = normalizeString(payload?.healthInsurance);
   const age = Number(payload?.age ?? 0);
   const diagnosis = normalizeString(payload?.diagnosis);
   const origin = normalizeString(payload?.origin).toLowerCase();
@@ -399,6 +400,7 @@ export async function createPatient(payload, organizationId, sectorIds) {
         organizationId,
         name,
         recordNumber,
+        healthInsurance: healthInsurance || null,
         age,
         diagnosis,
         origin,

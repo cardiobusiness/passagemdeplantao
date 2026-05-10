@@ -123,6 +123,7 @@ model Patient {
   organizationId           Int
   name                     String
   recordNumber             String
+  healthInsurance          String?
   age                      Int
   diagnosis                String
   origin                   String?

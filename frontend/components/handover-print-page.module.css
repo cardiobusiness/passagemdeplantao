@@ -238,6 +238,14 @@
   line-height: 1.4;
 }
 
+.healthInsurance {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--primary-strong);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .bedBadge {
   display: inline-flex;
   margin-bottom: 0.45rem;
@@ -408,6 +416,7 @@
   }
 
   .patientIdentity p,
+  .healthInsurance,
   .patientMeta,
   .summaryBlock p,
   .printBanner p,

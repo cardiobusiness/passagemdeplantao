@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS patients (
   bed_id INTEGER REFERENCES beds(id),
   record_number VARCHAR(30) NOT NULL UNIQUE,
   name VARCHAR(160) NOT NULL,
+  health_insurance VARCHAR(120),
   age INTEGER NOT NULL,
   diagnosis TEXT NOT NULL,
   admission_date DATE NOT NULL,

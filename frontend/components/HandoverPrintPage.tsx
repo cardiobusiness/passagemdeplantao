@@ -431,6 +431,9 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
                         <div className={styles.patientIdentity}>
                           <span className={styles.bedBadge}>{bed.code}</span>
                           <h4>{patient.name || "Nao informado"}</h4>
+                          <span className={styles.healthInsurance}>
+                            Plano: {patient.healthInsurance || "Nao informado"}
+                          </span>
                           <p>{patient.diagnosis || "Diagnostico nao informado"}</p>
                         </div>
 

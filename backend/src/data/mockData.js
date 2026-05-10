@@ -62,8 +62,11 @@ function buildPhysiotherapyPlan(patient, overrides = {}) {
 }
 
 function enrichPatient(patient) {
+  const healthPlans = ["Unimed", "Bradesco Saude", "SulAmerica", "Amil", "SUS"];
+
   return {
     ...patient,
+    healthInsurance: patient.healthInsurance ?? healthPlans[(patient.id - 1) % healthPlans.length],
     hospitalAdmissionDate: patient.hospitalAdmissionDate ?? patient.admissionDate,
     ctiAdmissionDate: patient.ctiAdmissionDate ?? patient.admissionDate,
     respiratoryTimeline: patient.respiratoryTimeline ?? {
@@ -103,6 +106,7 @@ const basePatients = [
     id: 1,
     name: "Maria Helena Souza",
     recordNumber: "CTI-1001",
+    healthInsurance: "Unimed",
     age: 67,
     diagnosis: "Insuficiencia respiratoria aguda",
     bedId: 1,

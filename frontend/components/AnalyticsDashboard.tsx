@@ -57,6 +57,7 @@ const PATIENT_FILTER_OPTIONS: Array<{ label: string; value: PatientFilter }> = [
 const SUPPORT_COLORS = ["#1d4ed8", "#0f766e", "#d97706", "#9333ea", "#dc2626", "#64748b"];
 const ALERT_COLORS = ["#dc2626", "#f59e0b", "#2563eb", "#0f766e", "#7c3aed"];
 const ORIGIN_COLORS = ["#0f766e", "#d97706", "#2563eb", "#9333ea", "#64748b"];
+const HEALTH_PLAN_COLORS = ["#2563eb", "#0f766e", "#d97706", "#7c3aed", "#dc2626", "#0891b2", "#64748b"];
 
 function parseDate(value: string | null | undefined) {
   if (!value) {
@@ -208,6 +209,10 @@ function formatAlertCategory(alert: string) {
 
 function getPatientBedLabel(patient: Patient) {
   return patient.bedCode ?? patient.lastBedCode ?? "Sem leito ativo";
+}
+
+function getHealthPlanLabel(patient: Patient) {
+  return patient.healthInsurance?.trim() || "Nao informado";
 }
 
 export default function AnalyticsDashboard({ beds, patients, dashboard }: AnalyticsDashboardProps) {
@@ -369,6 +374,43 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
   const topAlertPatients = [...filteredPatients]
     .sort((left, right) => right.respiratoryAlerts.length - left.respiratoryAlerts.length)
     .slice(0, 5);
+  const activePatientById = new Map(activePatients.map((patient) => [patient.id, patient]));
+  const healthPlanDistribution = activePatients
+    .reduce<Array<{ name: string; value: number }>>((accumulator, patient) => {
+      const plan = getHealthPlanLabel(patient);
+      const item = accumulator.find((entry) => entry.name === plan);
+
+      if (item) {
+        item.value += 1;
+      } else {
+        accumulator.push({ name: plan, value: 1 });
+      }
+
+      return accumulator;
+    }, [])
+    .sort((left, right) => right.value - left.value);
+  const healthPlanNames = healthPlanDistribution.map((item) => item.name);
+  const healthPlanBySector = beds
+    .filter((bed) => bed.occupied && bed.patientId && activePatientById.has(bed.patientId))
+    .reduce<Array<Record<string, string | number>>>((accumulator, bed) => {
+      const patient = activePatientById.get(bed.patientId ?? -1);
+
+      if (!patient) {
+        return accumulator;
+      }
+
+      const sector = bed.sector || "Sem setor";
+      const plan = getHealthPlanLabel(patient);
+      let row = accumulator.find((item) => item.sector === sector);
+
+      if (!row) {
+        row = { sector };
+        accumulator.push(row);
+      }
+
+      row[plan] = Number(row[plan] ?? 0) + 1;
+      return accumulator;
+    }, []);
 
   const criticalInsights = [
     `${vmPatients.length} pacientes no recorte estao em ventilacao mecanica.`,
@@ -532,6 +574,66 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
             </div>
           ) : (
             <div className={styles.emptyState}>Nenhum paciente no recorte atual para distribuir por suporte.</div>
+          )}
+        </article>
+
+        <article className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2>Planos de saude</h2>
+              <p>Distribuicao dos pacientes ativos da organizacao.</p>
+            </div>
+          </div>
+          {healthPlanDistribution.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={healthPlanDistribution} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={4}>
+                    {healthPlanDistribution.map((entry, index) => (
+                      <Cell key={entry.name} fill={HEALTH_PLAN_COLORS[index % HEALTH_PLAN_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Nenhum plano de saude registrado para pacientes ativos.</div>
+          )}
+        </article>
+
+        <article className={`${styles.panel} ${styles.panelWide}`}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2>Planos por setor</h2>
+              <p>Comparativo dos planos de saude entre setores com leitos ocupados.</p>
+            </div>
+          </div>
+          {healthPlanBySector.length > 0 ? (
+            <div className={styles.chartArea}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={healthPlanBySector}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#dbe4f0" />
+                  <XAxis dataKey="sector" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  {healthPlanNames.map((plan, index) => (
+                    <Bar
+                      key={plan}
+                      dataKey={plan}
+                      stackId="health-plan"
+                      name={plan}
+                      fill={HEALTH_PLAN_COLORS[index % HEALTH_PLAN_COLORS.length]}
+                      radius={index === healthPlanNames.length - 1 ? [10, 10, 0, 0] : [0, 0, 0, 0]}
+                    />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>Nenhum leito ocupado com plano de saude registrado por setor.</div>
           )}
         </article>
 

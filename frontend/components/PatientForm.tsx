@@ -14,6 +14,7 @@ type Props = {
 const initialForm = {
   name: "",
   recordNumber: "",
+  healthInsurance: "",
   age: "",
   diagnosis: "",
   origin: "",
@@ -133,6 +134,7 @@ export function PatientForm({ availableBeds, preferredBedId = null }: Props) {
       await createPatient({
         name: form.name.trim(),
         recordNumber: form.recordNumber.trim(),
+        healthInsurance: form.healthInsurance.trim(),
         age: Number(form.age),
         diagnosis: form.diagnosis.trim(),
         origin: form.origin,
@@ -166,7 +168,7 @@ export function PatientForm({ availableBeds, preferredBedId = null }: Props) {
     }
   }
 
-  function updateField(field: "name" | "recordNumber" | "age" | "diagnosis" | "origin" | "internalTransferLocation" | "bedId" | "admissionDate" | "mobilityLevel", value: string) {
+  function updateField(field: "name" | "recordNumber" | "healthInsurance" | "age" | "diagnosis" | "origin" | "internalTransferLocation" | "bedId" | "admissionDate" | "mobilityLevel", value: string) {
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -234,6 +236,16 @@ export function PatientForm({ availableBeds, preferredBedId = null }: Props) {
             onChange={(event) => updateField("recordNumber", event.target.value)}
             placeholder="CTI-1041"
             required
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="healthInsurance">Plano de saude</label>
+          <input
+            id="healthInsurance"
+            value={form.healthInsurance}
+            onChange={(event) => updateField("healthInsurance", event.target.value)}
+            placeholder="Ex.: Unimed, Bradesco, SUS"
           />
         </div>
 

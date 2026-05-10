@@ -120,6 +120,7 @@ export type Patient = {
   id: number;
   name: string;
   recordNumber: string;
+  healthInsurance: string;
   age: number;
   diagnosis: string;
   origin?: string | null;
