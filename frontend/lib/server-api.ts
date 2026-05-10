@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import {
+  ApiRequestError,
   getBeds,
   getMe,
   getMonthlyDashboard,
@@ -32,19 +34,47 @@ function getServerToken() {
   return cookies().get(TOKEN_COOKIE_KEY)?.value ?? null;
 }
 
+export function isInvalidSessionError(error: unknown) {
+  return (
+    error instanceof ApiRequestError &&
+    error.status === 401 &&
+    ["Acesso nao autorizado.", "Sessao invalida ou expirada."].includes(error.message)
+  );
+}
+
+function redirectOnInvalidSession(error: unknown): never {
+  if (isInvalidSessionError(error)) {
+    redirect("/");
+  }
+
+  throw error;
+}
+
 export async function getServerBeds(): Promise<Bed[]> {
   const token = getServerToken();
-  return token ? getBeds(token) : [];
+  try {
+    return token ? await getBeds(token) : [];
+  } catch (error) {
+    redirectOnInvalidSession(error);
+  }
 }
 
 export async function getServerCurrentUser(): Promise<User | null> {
   const token = getServerToken();
-  return token ? getMe(token) : null;
+  try {
+    return token ? await getMe(token) : null;
+  } catch (error) {
+    redirectOnInvalidSession(error);
+  }
 }
 
 export async function getServerPatients(): Promise<Patient[]> {
   const token = getServerToken();
-  return token ? getPatients(token) : [];
+  try {
+    return token ? await getPatients(token) : [];
+  } catch (error) {
+    redirectOnInvalidSession(error);
+  }
 }
 
 export async function getServerPatient(patientId: number): Promise<Patient> {
@@ -54,10 +84,18 @@ export async function getServerPatient(patientId: number): Promise<Patient> {
     throw new Error("Sessao nao encontrada.");
   }
 
-  return getPatient(patientId, token);
+  try {
+    return await getPatient(patientId, token);
+  } catch (error) {
+    redirectOnInvalidSession(error);
+  }
 }
 
 export async function getServerMonthlyDashboard(): Promise<DashboardSummary> {
   const token = getServerToken();
-  return token ? getMonthlyDashboard(token) : emptyDashboard;
+  try {
+    return token ? await getMonthlyDashboard(token) : emptyDashboard;
+  } catch (error) {
+    redirectOnInvalidSession(error);
+  }
 }

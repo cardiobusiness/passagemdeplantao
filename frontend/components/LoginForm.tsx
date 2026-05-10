@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./login-form.module.css";
-import { savePendingOrganizationSelection, saveSession } from "@/lib/auth";
+import { clearSession, savePendingOrganizationSelection, saveSession } from "@/lib/auth";
 import { login } from "@/lib/api";
 import { getDefaultRouteForRole } from "@/lib/permissions";
 import { LoginResponse, OrganizationSelectionResponse } from "@/lib/types";
@@ -18,6 +18,10 @@ export function LoginForm() {
   const [password, setPassword] = useState("Admin@123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    clearSession();
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

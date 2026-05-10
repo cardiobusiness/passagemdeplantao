@@ -24,6 +24,16 @@ import { getStoredToken } from "./auth";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://passagemdeplantao.eletrostarsoft.com.br/api";
 
+export class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
 
@@ -53,7 +63,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       // Keep the fallback message when the backend does not return JSON.
     }
 
-    throw new Error(message);
+    throw new ApiRequestError(message, response.status);
   }
 
   if (response.status === 204) {

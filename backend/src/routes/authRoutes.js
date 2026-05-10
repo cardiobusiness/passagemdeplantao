@@ -4,6 +4,16 @@ import { authenticateUser, listActiveProfessionals, logoutUser, selectOrganizati
 
 const router = Router();
 
+function isDatabaseConnectionError(error) {
+  const message = String(error?.message ?? "");
+  return (
+    error?.code === "P1000" ||
+    error?.code === "P1001" ||
+    message.includes("Authentication failed against database server") ||
+    message.includes("Can't reach database server")
+  );
+}
+
 router.post("/login", async (req, res) => {
   const { email, login, identifier, password } = req.body;
   const authIdentifier = identifier || login || email;
@@ -16,6 +26,12 @@ router.post("/login", async (req, res) => {
     const result = await authenticateUser(authIdentifier, password);
     return res.json(result);
   } catch (error) {
+    if (isDatabaseConnectionError(error)) {
+      return res.status(503).json({
+        message: "Banco de dados indisponivel. Verifique a conexao do servidor."
+      });
+    }
+
     return res.status(error.statusCode ?? 401).json({ message: error.message });
   }
 });

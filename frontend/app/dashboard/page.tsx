@@ -23,16 +23,14 @@ type Props = {
 };
 
 async function loadDashboardData() {
+  const currentUser = await getServerCurrentUser();
   const results = await Promise.allSettled([
-    getServerCurrentUser(),
     getServerBeds(),
     getServerMonthlyDashboard(),
     getServerPatients()
   ]);
-  const [userResult, bedsResult, dashboardResult, patientsResult] = results;
+  const [bedsResult, dashboardResult, patientsResult] = results;
   const errors: string[] = [];
-
-  const currentUser: User | null = userResult.status === "fulfilled" ? userResult.value : null;
 
   const beds: Bed[] = bedsResult.status === "fulfilled" ? bedsResult.value : [];
   if (bedsResult.status === "rejected") {
