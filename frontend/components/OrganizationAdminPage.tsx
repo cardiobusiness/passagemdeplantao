@@ -5,6 +5,7 @@ import { getOrganizationMe, updateOrganizationMe } from "@/lib/api";
 import { getStoredToken, getStoredUser, saveSession } from "@/lib/auth";
 import { Organization, UpdateOrganizationPayload } from "@/lib/types";
 import { AdminNav } from "./AdminNav";
+import { BrandHeaderLogo } from "./BrandHeaderLogo";
 import styles from "./admin-saas-page.module.css";
 
 const initialForm: UpdateOrganizationPayload = {
@@ -123,6 +124,7 @@ export function OrganizationAdminPage() {
     <section className={styles.page}>
       <header className={styles.header}>
         <div>
+          <BrandHeaderLogo />
           <span className="pill">Administracao SaaS</span>
           <h1>Organizacao</h1>
           <p>Dados da conta hospitalar usada para isolar usuarios, setores, leitos e dados clinicos.</p>

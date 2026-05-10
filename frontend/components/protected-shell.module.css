@@ -4,19 +4,18 @@
 }
 
 .topbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-  padding: 1rem 1.2rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: end;
+  padding: 1.6rem 1.2rem 1rem;
   margin-bottom: 1rem;
 }
 
 .brandBlock {
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
 }
 
 .brand {
@@ -29,7 +28,7 @@
 
 .brandLogo {
   display: block;
-  width: clamp(150px, 18vw, 220px);
+  width: clamp(190px, 20vw, 270px);
   height: auto;
 }
 
@@ -104,7 +103,11 @@
 }
 
 @media (max-width: 900px) {
-  .topbar,
+  .topbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
   .userBlock {
     flex-direction: column;
     align-items: stretch;

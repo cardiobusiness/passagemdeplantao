@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BrandHeaderLogo } from "@/components/BrandHeaderLogo";
 import { PatientClinicalForm } from "@/components/PatientClinicalForm";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { getServerPatient } from "@/lib/server-api";
@@ -126,6 +127,7 @@ export default async function PatientDetailPage({ params }: Props) {
       <section className={styles.page}>
         <header className={styles.header}>
           <div>
+            <BrandHeaderLogo />
             <span className="pill">CTI 1 - {patient.bedId ? getBedLabel(patient) : "Historico de paciente"}</span>
             <h1>{patient.name}</h1>
             <p>{patient.diagnosis}</p>

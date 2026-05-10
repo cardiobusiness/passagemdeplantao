@@ -131,8 +131,8 @@ export function ProtectedShell({ children, routeKey }: ProtectedShellProps) {
               <Image
                 src="/brand/logo-horizontal.png"
                 alt="PASSAGEM DE PLANTÃO"
-                width={220}
-                height={90}
+                width={320}
+                height={138}
                 priority
                 className={styles.brandLogo}
               />

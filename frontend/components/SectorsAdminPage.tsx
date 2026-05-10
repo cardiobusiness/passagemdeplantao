@@ -5,6 +5,7 @@ import { createSector, getSectors, updateSector } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth";
 import { Sector, SectorFormPayload } from "@/lib/types";
 import { AdminNav } from "./AdminNav";
+import { BrandHeaderLogo } from "./BrandHeaderLogo";
 import styles from "./admin-saas-page.module.css";
 
 const initialForm: SectorFormPayload = {
@@ -117,6 +118,7 @@ export function SectorsAdminPage() {
     <section className={styles.page}>
       <header className={styles.header}>
         <div>
+          <BrandHeaderLogo />
           <span className="pill">Administracao SaaS</span>
           <h1>Setores</h1>
           <p>Cadastre e mantenha as unidades assistenciais da organizacao logada.</p>

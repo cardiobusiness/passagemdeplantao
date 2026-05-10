@@ -12,6 +12,7 @@ import {
 import { getRoleLabel, getStoredToken } from "@/lib/auth";
 import { Sector, UpdateUserPayload, User, UserFormPayload } from "@/lib/types";
 import { AdminNav } from "./AdminNav";
+import { BrandHeaderLogo } from "./BrandHeaderLogo";
 import styles from "./admin-users-page.module.css";
 
 const initialFormState: UserFormPayload = {
@@ -226,6 +227,7 @@ export function AdminUsersPage() {
     <section className={styles.page}>
       <header className={styles.header}>
         <div>
+          <BrandHeaderLogo />
           <span className="pill">Area restrita</span>
           <h1>Administracao de Usuarios</h1>
           <p>PASSAGEM DE PLANTÃO para cadastro e controle dos profissionais de saude.</p>

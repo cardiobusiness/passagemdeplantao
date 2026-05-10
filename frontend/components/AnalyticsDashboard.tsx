@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { BrandHeaderLogo } from "./BrandHeaderLogo";
 import {
   Area,
   Bar,
@@ -382,6 +383,7 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
     <div className={styles.page}>
       <section className={styles.hero}>
         <div>
+          <BrandHeaderLogo className={styles.heroLogo} />
           <span className={styles.eyebrow}>PASSAGEM DE PLANTÃO</span>
           <h1 className={styles.title}>Passagem de plantão inteligente</h1>
           <p className={styles.subtitle}>

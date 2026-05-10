@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BrandHeaderLogo } from "./BrandHeaderLogo";
 import { getStoredToken } from "@/lib/auth";
 import { getActiveProfessionals, createHandover } from "@/lib/api";
 import { Bed, Patient, User } from "@/lib/types";
@@ -270,6 +271,7 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
     <section className={styles.page}>
       <header className={styles.header}>
         <div>
+          <BrandHeaderLogo />
           <span className="pill">PASSAGEM DE PLANTÃO</span>
           <h1>Impressao personalizada</h1>
           <p>

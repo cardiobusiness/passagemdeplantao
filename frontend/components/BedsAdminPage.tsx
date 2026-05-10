@@ -10,6 +10,7 @@ import {
 import { getStoredToken } from "@/lib/auth";
 import { Bed, BedFormPayload, Sector } from "@/lib/types";
 import { AdminNav } from "./AdminNav";
+import { BrandHeaderLogo } from "./BrandHeaderLogo";
 import styles from "./admin-saas-page.module.css";
 
 const initialForm: BedFormPayload = {
@@ -159,6 +160,7 @@ export function BedsAdminPage() {
     <section className={styles.page}>
       <header className={styles.header}>
         <div>
+          <BrandHeaderLogo />
           <span className="pill">Administracao SaaS</span>
           <h1>Leitos</h1>
           <p>Cadastre e mantenha os leitos da organizacao logada, sempre vinculados a um setor.</p>
