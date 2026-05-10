@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BrandHeaderLogo } from "@/components/BrandHeaderLogo";
 import { BedGrid } from "@/components/BedGrid";
 import { PatientDischargeCard } from "@/components/PatientDischargeCard";
 import { PatientForm } from "@/components/PatientForm";
@@ -77,7 +76,6 @@ export default async function DashboardPage({ searchParams }: Props) {
       <section className={styles.page}>
         <header className={styles.header}>
           <div>
-            <BrandHeaderLogo />
             <span className="pill">{dashboard.month}</span>
             <h1>PASSAGEM DE PLANTÃO</h1>
             <p>

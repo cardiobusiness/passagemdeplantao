@@ -16,11 +16,6 @@
   margin-bottom: 24px;
 }
 
-.heroLogo {
-  width: min(100%, 300px);
-  margin-bottom: 18px;
-}
-
 .eyebrow {
   display: inline-flex;
   padding: 8px 12px;

@@ -10,7 +10,6 @@ import {
 } from "@/lib/auth";
 import { getDefaultRouteForRole, getRoleLabel } from "@/lib/permissions";
 import { OrganizationSelectionOption } from "@/lib/types";
-import { BrandHeaderLogo } from "./BrandHeaderLogo";
 import styles from "./select-organization-page.module.css";
 
 type PendingSelection = {
@@ -84,7 +83,6 @@ export function SelectOrganizationPage() {
     <main className={styles.page}>
       <section className={`${styles.panel} card`}>
         <header className={styles.header}>
-          <BrandHeaderLogo />
           <span className="pill">Selecao de organizacao</span>
           <h1>Escolha onde deseja acessar</h1>
           <p>{pendingSelection.user.name}</p>

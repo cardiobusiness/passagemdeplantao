@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BrandHeaderLogo } from "@/components/BrandHeaderLogo";
 import { PatientForm } from "@/components/PatientForm";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { getServerBeds } from "@/lib/server-api";
@@ -25,7 +24,6 @@ export default async function NewPatientPage({ searchParams }: Props) {
       <section className={styles.page}>
         <header className={styles.header}>
           <div>
-            <BrandHeaderLogo />
             <span className="pill">Cadastro individualizado</span>
             <h1>Novo paciente</h1>
             <p>

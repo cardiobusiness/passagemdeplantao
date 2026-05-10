@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BrandHeaderLogo } from "@/components/BrandHeaderLogo";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { getServerPatients } from "@/lib/server-api";
 import styles from "./patients-page.module.css";
@@ -14,7 +13,6 @@ export default async function PatientsPage() {
       <section className={styles.page}>
         <header className={styles.header}>
           <div>
-            <BrandHeaderLogo />
             <span className="pill">Area clinica</span>
             <h1>Pacientes</h1>
             <p>Consulta rapida da ficha clinica, leito atual e principais tempos assistenciais da internacao.</p>

@@ -129,10 +129,10 @@ export function ProtectedShell({ children, routeKey }: ProtectedShellProps) {
           <div className={styles.brandBlock}>
             <Link href={getDefaultRouteForRole(user?.role)} className={styles.brand} aria-label="PASSAGEM DE PLANTÃO">
               <Image
-                src="/brand/logo-horizontal.png"
+                src="/brand/logo-header-horizontal.png"
                 alt="PASSAGEM DE PLANTÃO"
-                width={320}
-                height={138}
+                width={360}
+                height={180}
                 priority
                 className={styles.brandLogo}
               />
