@@ -385,7 +385,7 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
           <span className={styles.eyebrow}>PASSAGEM DE PLANTÃO</span>
           <h1 className={styles.title}>Passagem de plantão inteligente</h1>
           <p className={styles.subtitle}>
-            Analytics operacional com indicadores respiratorios, ocupacao,
+            Analytics operacional com indicadores assistenciais, ocupacao,
             permanencia e tendencia laboratorial usando os dados reais do sistema em memoria.
           </p>
           <span className={styles.periodBadge}>{periodLabel}</span>
@@ -457,7 +457,7 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
         <article className={styles.metricCard}>
           <span className={styles.metricLabel}>Alertas ativos</span>
           <strong className={styles.metricValue}>{totalAlerts}</strong>
-          <p>Alertas respiratorios e operacionais associados aos pacientes.</p>
+          <p>Alertas assistenciais e operacionais associados aos pacientes.</p>
         </article>
 
         <article className={styles.metricCard}>
@@ -757,7 +757,7 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
           <div className={styles.panelHeader}>
             <div>
               <h2>Pacientes em foco</h2>
-              <p>Alertas respiratorios e status do filtro.</p>
+              <p>Alertas assistenciais e status do filtro.</p>
             </div>
           </div>
           <div className={styles.patientList}>
@@ -784,7 +784,7 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
           <div className={styles.panelHeader}>
             <div>
               <h2>Controle de filtro</h2>
-              <p>Pacientes com janela respiratoria mais critica.</p>
+              <p>Pacientes com janela assistencial mais critica.</p>
             </div>
           </div>
           <div className={styles.filterList}>

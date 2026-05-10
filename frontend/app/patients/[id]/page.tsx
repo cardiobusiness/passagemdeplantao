@@ -47,7 +47,7 @@ function getCurrentStatus(patient: Patient) {
 
   return isMechanicalVentilationType(patient.ventilatorySupport.type) || patient.mechanicalVentilation
     ? "Internado em suporte ventilatorio"
-    : "Internado em acompanhamento fisioterapeutico";
+    : "Internado em acompanhamento multiprofissional";
 }
 
 function getChestXray(imaging: Patient["imaging"]) {
@@ -197,8 +197,8 @@ export default async function PatientDetailPage({ params }: Props) {
               <a className={styles.actionButton} href="#ventilacao">
                 Registrar ventilacao
               </a>
-              <a className={styles.actionButton} href="#evolucao">
-                Registrar evolucao
+              <a className={styles.actionButton} href="#conduta">
+                Registrar conduta
               </a>
               <Link className={styles.actionButtonStrong} href={`/dashboard?patientId=${patient.id}#discharge`}>
                 Alta / Saida
@@ -412,21 +412,21 @@ export default async function PatientDetailPage({ params }: Props) {
             </div>
           </section>
 
-          <section id="evolucao" className={`${styles.section} card`}>
+          <section id="conduta" className={`${styles.section} card`}>
             <div className={styles.sectionHeader}>
-              <h2>Evolucao fisioterapeutica</h2>
+              <h2>Conduta da rotina</h2>
             </div>
             <div className={styles.stack}>
               <article className={styles.infoBlock}>
-                <span>Evolucao respiratoria</span>
+                <span>Avaliacao respiratoria</span>
                 <p>{patient.physiotherapyPlan.respiratoryEvolution}</p>
               </article>
               <article className={styles.infoBlock}>
-                <span>Evolucao motora</span>
+                <span>Avaliacao motora</span>
                 <p>{patient.physiotherapyPlan.motorEvolution}</p>
               </article>
               <article className={styles.infoBlock}>
-                <span>Condutas</span>
+                <span>Condutas da rotina</span>
                 <p>{renderList(patient.physiotherapyPlan.conducts)}</p>
               </article>
               <article className={styles.infoBlock}>
@@ -442,7 +442,7 @@ export default async function PatientDetailPage({ params }: Props) {
                     </p>
                   ))
                 ) : (
-                  <p>Sem evolucoes fisioterapeuticas registradas.</p>
+                  <p>Sem condutas da rotina registradas.</p>
                 )}
               </article>
             </div>

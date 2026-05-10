@@ -116,7 +116,7 @@ async function main() {
       email: "rotina@cti.com",
       login: "rotina",
       password: "Rotina@123",
-      jobTitle: "Fisioterapeuta",
+      jobTitle: "Profissional de saude",
       role: "routine"
     }),
     upsertUser({
@@ -124,7 +124,7 @@ async function main() {
       email: "plantonista@cti.com",
       login: "plantonista",
       password: "Plantao@123",
-      jobTitle: "Fisioterapeuta",
+      jobTitle: "Profissional de saude",
       role: "oncall"
     })
   ]);

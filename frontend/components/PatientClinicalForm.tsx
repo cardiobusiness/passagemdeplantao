@@ -12,6 +12,15 @@ type Props = {
   patient: Patient;
 };
 
+const routineAreas = [
+  "Fisioterapia",
+  "Medica",
+  "Enfermagem",
+  "Nutricao",
+  "Odontologia",
+  "Outro profissional de saude"
+];
+
 function toDateTimeLocal(value: string | null | undefined) {
   if (!value) {
     return "";
@@ -153,6 +162,8 @@ export function PatientClinicalForm({ patient }: Props) {
     toDateTimeLocal(patient.filterChanges.trachCare.lastChangeDateTime)
   );
   const [conducts, setConducts] = useState(joinLines(patient.physiotherapyPlan.conducts));
+  const [routineArea, setRoutineArea] = useState("Fisioterapia");
+  const [otherRoutineArea, setOtherRoutineArea] = useState("");
   const [clinicalNotes, setClinicalNotes] = useState(patient.clinicalNotes ?? "");
   const [updatedBy, setUpdatedBy] = useState(storedUser?.name ?? patient.clinicalUpdatedBy ?? "");
   const [saving, setSaving] = useState(false);
@@ -204,6 +215,13 @@ export function PatientClinicalForm({ patient }: Props) {
     setError("");
 
     try {
+      const selectedRoutineArea = routineArea === "Outro profissional de saude" ? otherRoutineArea.trim() : routineArea;
+      const conductLines = splitLines(conducts);
+      const routineConducts =
+        selectedRoutineArea && conductLines.length
+          ? [`Area da rotina: ${selectedRoutineArea}`, ...conductLines]
+          : conductLines;
+
       const updatedPatient = await updatePatientClinicalData(patient.id, {
         ventilatorySupport,
         mechanicalVentilation,
@@ -227,7 +245,7 @@ export function PatientClinicalForm({ patient }: Props) {
           trachCare: { lastChangeDateTime: trachCareChange || null }
         },
         clinicalNotes,
-        conducts: splitLines(conducts),
+        conducts: routineConducts,
         updatedBy
       });
 
@@ -594,10 +612,31 @@ export function PatientClinicalForm({ patient }: Props) {
         </section>
 
         <section className={styles.section}>
-          <h3>Condutas e observacoes</h3>
+          <h3>Conduta da rotina e observacoes</h3>
           <div className={styles.grid}>
+            <div className={styles.field}>
+              <label htmlFor="routineArea">Area da rotina</label>
+              <select id="routineArea" value={routineArea} onChange={(event) => setRoutineArea(event.target.value)}>
+                {routineAreas.map((area) => (
+                  <option key={area} value={area}>
+                    {area}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {routineArea === "Outro profissional de saude" ? (
+              <div className={styles.field}>
+                <label htmlFor="otherRoutineArea">Outro profissional de saude</label>
+                <input
+                  id="otherRoutineArea"
+                  value={otherRoutineArea}
+                  onChange={(event) => setOtherRoutineArea(event.target.value)}
+                  placeholder="Informe a area ou profissional"
+                />
+              </div>
+            ) : null}
             <div className={`${styles.field} ${styles.full}`}>
-              <label htmlFor="conducts">Condutas terapeuticas</label>
+              <label htmlFor="conducts">Condutas da rotina</label>
               <textarea id="conducts" rows={4} value={conducts} onChange={(event) => setConducts(event.target.value)} />
             </div>
             <div className={`${styles.field} ${styles.full}`}>

@@ -56,7 +56,7 @@ function buildPhysiotherapyPlan(patient, overrides = {}) {
     motorEvolution:
       overrides.motorEvolution ?? `Progressao motora conforme nivel atual: ${patient.mobilityLevel}.`,
     conducts:
-      overrides.conducts ?? ["Monitorizacao fisioterapeutica diaria", "Reavaliacao funcional por plantao"],
+      overrides.conducts ?? ["Conduta da rotina multiprofissional", "Reavaliacao assistencial por plantao"],
     patientResponse: overrides.patientResponse ?? "Resposta satisfatoria as condutas instituidas."
   };
 }
@@ -505,7 +505,7 @@ export const teamUsers = [
     email: "rotina@ctiapp.com",
     login: "rotina",
     passwordHash: createStoredPassword("Rotina@123", "cti-rotina-salt"),
-    jobTitle: "Fisioterapeuta da Rotina",
+    jobTitle: "Profissional de saude da rotina",
     role: "routine",
     isActive: true
   },
@@ -515,7 +515,7 @@ export const teamUsers = [
     email: "plantao@ctiapp.com",
     login: "plantonista",
     passwordHash: createStoredPassword("Plantao@123", "cti-plantao-salt"),
-    jobTitle: "Fisioterapeuta Plantonista",
+    jobTitle: "Profissional de saude plantonista",
     role: "oncall",
     isActive: true
   }

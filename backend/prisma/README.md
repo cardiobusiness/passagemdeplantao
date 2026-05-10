@@ -68,7 +68,7 @@ npm run db:reset
 - Exames de imagem
 
 ### Evolution
-- Evoluções clínicas (respiratória, motora)
+- Condutas da rotina e registros clínicos
 
 ### Alert
 - Alertas ativos de pacientes

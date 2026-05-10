@@ -30,7 +30,7 @@ cti-app/
 
 ## O que o sistema entrega hoje
 
-- autenticacao com perfis `administrador`, `fisioterapeuta` e `coordenador`
+- autenticacao com perfis `administrador`, `profissional de saude` e `coordenador`
 - administracao de profissionais com criacao, edicao, ativacao, inativacao e redefinicao de senha
 - dashboard com mapa de 40 leitos do `CTI 1`
 - cadastro de pacientes em memoria
@@ -76,7 +76,7 @@ Aplicacoes:
 ## Credenciais iniciais
 
 - Administrador: `admin` / `Admin@123`
-- Fisioterapeuta: `fisio` / `123456`
+- Profissional de saude: `profissional` / `123456`
 - Coordenador: `coordenador` / `Coord@123`
 
 ## Observacoes

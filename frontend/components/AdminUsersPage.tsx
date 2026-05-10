@@ -32,6 +32,18 @@ const roleOptions = [
   { value: "oncall", label: "Plantonista" }
 ];
 
+const healthProfessionalOptions = [
+  "Medico",
+  "Enfermeiro",
+  "Fisioterapia",
+  "Nutricionista",
+  "Odontologia",
+  "Fonoaudiologo",
+  "Psicologo",
+  "Farmaceutico",
+  "Outro profissional de saude"
+];
+
 export function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -216,7 +228,7 @@ export function AdminUsersPage() {
         <div>
           <span className="pill">Area restrita</span>
           <h1>Administracao de Usuarios</h1>
-          <p>PASSAGEM DE PLANTÃO para cadastro e controle da equipe.</p>
+          <p>PASSAGEM DE PLANTÃO para cadastro e controle dos profissionais de saude.</p>
         </div>
       </header>
 
@@ -226,8 +238,8 @@ export function AdminUsersPage() {
         <section className={`${styles.panel} card`}>
           <div className={styles.sectionHeader}>
             <div>
-              <h2>{editingUserId ? "Editar profissional" : "Novo profissional"}</h2>
-              <p>Administradores e rotina podem cadastrar, editar e manter os profissionais ativos.</p>
+              <h2>{editingUserId ? "Editar profissional de saude" : "Novo profissional de saude"}</h2>
+              <p>Administradores e rotina podem cadastrar, editar e manter profissionais de saude ativos.</p>
             </div>
           </div>
 
@@ -264,10 +276,17 @@ export function AdminUsersPage() {
             <label className={styles.field}>
               <span>Cargo / funcao</span>
               <input
+                list="health-professional-options"
                 value={form.jobTitle}
                 onChange={(event) => handleChange("jobTitle", event.target.value)}
+                placeholder="Ex: Medico, Enfermagem, Nutricao, Odontologia"
                 required
               />
+              <datalist id="health-professional-options">
+                {healthProfessionalOptions.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
             </label>
 
             <label className={styles.field}>

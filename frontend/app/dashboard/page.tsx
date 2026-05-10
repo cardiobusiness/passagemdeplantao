@@ -121,7 +121,7 @@ export default async function DashboardPage({ searchParams }: Props) {
             <small>Prioridades automaticas</small>
           </article>
           <article className={`${styles.summaryCard} card`}>
-            <span>Evolucoes do mes</span>
+            <span>Condutas do mes</span>
             <strong>{dashboard.respiratoryEvolutions + dashboard.motorEvolutions}</strong>
             <small>
               Respiratoria {dashboard.respiratoryEvolutions} | Motora {dashboard.motorEvolutions}

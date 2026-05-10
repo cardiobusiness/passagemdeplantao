@@ -15,7 +15,7 @@ export default async function PatientsPage() {
           <div>
             <span className="pill">Area clinica</span>
             <h1>Pacientes</h1>
-            <p>Consulta rapida da ficha clinica, leito atual e principais tempos assistenciais do CTI.</p>
+            <p>Consulta rapida da ficha clinica, leito atual e principais tempos assistenciais da internacao.</p>
           </div>
         </header>
 

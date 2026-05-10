@@ -50,24 +50,26 @@ const initialForm: SignupForm = {
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://passagemdeplantao.eletrostarsoft.com.br/api";
 
 const professionCouncil: Record<string, string> = {
-  Fisioterapeuta: "CREFITO",
+  Fisioterapia: "CREFITO",
   Enfermeiro: "COREN",
   Médico: "CRM",
   Nutricionista: "CRN",
   Fonoaudiólogo: "CREFONO",
   Psicólogo: "CRP",
-  Outro: ""
+  Odontologia: "CRO",
+  "Outro profissional de saude": ""
 };
 
 const professions = [
   { value: "", label: "Selecione a profissão" },
-  { value: "Fisioterapeuta", label: "Fisioterapeuta" },
+  { value: "Fisioterapia", label: "Fisioterapia" },
   { value: "Enfermeiro", label: "Enfermeiro" },
   { value: "Médico", label: "Médico" },
   { value: "Nutricionista", label: "Nutricionista" },
   { value: "Fonoaudiólogo", label: "Fonoaudiólogo" },
   { value: "Psicólogo", label: "Psicólogo" },
-  { value: "Outro", label: "Outro" }
+  { value: "Odontologia", label: "Odontologia" },
+  { value: "Outro profissional de saude", label: "Outro profissional de saude" }
 ];
 
 const councilStates = [
@@ -198,7 +200,7 @@ export default function SignupPage() {
     }
   }
 
-  const isOtherProfession = form.profession === "Outro";
+  const isOtherProfession = form.profession === "Outro profissional de saude";
 
   return (
     <main className={styles.wrapper}>

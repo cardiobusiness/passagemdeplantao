@@ -25,10 +25,10 @@ export default async function NewPatientPage({ searchParams }: Props) {
         <header className={styles.header}>
           <div>
             <span className="pill">Cadastro individualizado</span>
-            <h1>Novo paciente do CTI</h1>
+            <h1>Novo paciente</h1>
             <p>
               Tela inicial para admissao, vinculacao de leito e registro do perfil
-              respiratorio e motor do paciente.
+              respiratorio, motor e multiprofissional do paciente.
             </p>
           </div>
 
