@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./login-form.module.css";
@@ -57,8 +58,17 @@ export function LoginForm() {
     <main className={styles.wrapper}>
       <div className={`${styles.panel} card`}>
         <section className={styles.hero}>
-          <span className="pill">Passagem de Plantao</span>
-          <h1>Gestão Inteligente de CTI</h1>
+          <div className={styles.logoPanel}>
+            <Image
+              src="/brand/logo-vertical.png"
+              alt="PASSAGEM DE PLANTÃO"
+              width={360}
+              height={450}
+              priority
+              className={styles.verticalLogo}
+            />
+          </div>
+          <h1>PASSAGEM DE PLANTÃO</h1>
           <p>
             Acesse o mapa de leitos, a ficha completa do paciente, os analytics e a administracao
             de profissionais com controle de perfis em uma experiencia unica e responsiva.

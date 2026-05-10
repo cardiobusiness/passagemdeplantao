@@ -270,7 +270,7 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
     <section className={styles.page}>
       <header className={styles.header}>
         <div>
-          <span className="pill">Passagem de Plantao</span>
+          <span className="pill">PASSAGEM DE PLANTÃO</span>
           <h1>Impressao personalizada</h1>
           <p>
             Selecione o profissional e os leitos desejados para gerar o resumo impresso
@@ -405,8 +405,8 @@ export function HandoverPrintPage({ beds, patients }: HandoverPrintPageProps) {
             <div className={`${styles.printArea} ${singleSheetMode ? styles.singleSheetMode : ""}`}>
               <div className={`${styles.printBanner} ${styles.printHeader}`}>
                 <div>
-                  <span className={styles.printEyebrow}>Passagem de Plantao</span>
-                  <h3>Gestao Inteligente de CTI</h3>
+                  <span className={styles.printEyebrow}>PASSAGEM DE PLANTÃO</span>
+                  <h3>Passagem de plantão inteligente</h3>
                   <p>
                     Profissional: {selectedProfessional.name} • {selectedProfessional.jobTitle}
                   </p>

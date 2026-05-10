@@ -77,9 +77,9 @@ export default async function DashboardPage({ searchParams }: Props) {
         <header className={styles.header}>
           <div>
             <span className="pill">{dashboard.month}</span>
-            <h1>Passagem de Plantao</h1>
+            <h1>PASSAGEM DE PLANTÃO</h1>
             <p>
-              Gestao Inteligente de CTI com monitoramento integrado dos 40 leitos,
+              Passagem de plantão inteligente com monitoramento integrado dos 40 leitos,
               fluxo assistencial, exames e alertas de condutas prioritarias.
             </p>
           </div>

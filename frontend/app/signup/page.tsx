@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveSession } from "@/lib/auth";
@@ -203,7 +204,16 @@ export default function SignupPage() {
     <main className={styles.wrapper}>
       <div className={`${styles.panel} card`}>
         <section className={styles.hero}>
-          <span className="pill">Passagem de Plantão</span>
+          <div className={styles.logoPanel}>
+            <Image
+              src="/brand/logo-vertical.png"
+              alt="PASSAGEM DE PLANTÃO"
+              width={340}
+              height={425}
+              priority
+              className={styles.verticalLogo}
+            />
+          </div>
           <h1>Crie sua conta SaaS</h1>
           <p>Cadastre sua organização, usuário master e comece com 60 dias gratuitos.</p>
 

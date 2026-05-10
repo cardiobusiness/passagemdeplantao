@@ -382,8 +382,8 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
     <div className={styles.page}>
       <section className={styles.hero}>
         <div>
-          <span className={styles.eyebrow}>Passagem de Plantao</span>
-          <h1 className={styles.title}>Gestao Inteligente de CTI</h1>
+          <span className={styles.eyebrow}>PASSAGEM DE PLANTÃO</span>
+          <h1 className={styles.title}>Passagem de plantão inteligente</h1>
           <p className={styles.subtitle}>
             Analytics operacional com indicadores respiratorios, ocupacao,
             permanencia e tendencia laboratorial usando os dados reais do sistema em memoria.

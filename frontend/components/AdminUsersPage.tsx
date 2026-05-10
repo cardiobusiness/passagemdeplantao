@@ -216,7 +216,7 @@ export function AdminUsersPage() {
         <div>
           <span className="pill">Area restrita</span>
           <h1>Administracao de Usuarios</h1>
-          <p>Passagem de Plantao | Gestao Inteligente de CTI para cadastro e controle da equipe.</p>
+          <p>PASSAGEM DE PLANTÃO para cadastro e controle da equipe.</p>
         </div>
       </header>
 

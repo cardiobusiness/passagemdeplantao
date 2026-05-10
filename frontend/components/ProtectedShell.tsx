@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
@@ -126,8 +127,15 @@ export function ProtectedShell({ children, routeKey }: ProtectedShellProps) {
       <div className="container">
         <header className={`${styles.topbar} card print-hidden`}>
           <div className={styles.brandBlock}>
-            <Link href={getDefaultRouteForRole(user?.role)} className={styles.brand}>
-              Passagem de Plantao
+            <Link href={getDefaultRouteForRole(user?.role)} className={styles.brand} aria-label="PASSAGEM DE PLANTÃO">
+              <Image
+                src="/brand/logo-horizontal.png"
+                alt="PASSAGEM DE PLANTÃO"
+                width={220}
+                height={90}
+                priority
+                className={styles.brandLogo}
+              />
             </Link>
             <nav className={styles.nav}>
               {navigation.map((item) => (
