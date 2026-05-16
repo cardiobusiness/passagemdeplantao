@@ -277,6 +277,16 @@ function normalizeFilterChanges(payload, existingFilterChanges = {}) {
   });
 }
 
+function normalizeNonNegativeInteger(value) {
+  const number = normalizeNumber(value);
+
+  if (number == null) {
+    return null;
+  }
+
+  return Math.max(0, Math.trunc(number));
+}
+
 function mapLabRecord(lab) {
   return {
     id: lab.id,
@@ -438,7 +448,10 @@ export async function createPatient(payload, organizationId, sectorIds) {
         daysInICU: 0,
         daysOnVM: 0,
         daysOnIOT: 0,
-        daysOnTQT: 0
+        daysOnTQT: 0,
+        extubationCount: 0,
+        reintubationCount: 0,
+        nonInvasiveVentilationDays: 0
       }
     });
 
@@ -503,6 +516,7 @@ export async function updatePatientClinicalData(patientId, payload, organization
   const updatedBy = normalizeString(payload?.updatedBy) || patient.clinicalUpdatedBy || "Nao informado";
   const filterChanges = normalizeFilterChanges(payload, currentFilterChanges);
   const ventilatoryLastChange = filterChanges?.ventilatoryFilter?.lastChangeDateTime ?? null;
+  const admissionMetricsPayload = payload?.admissionMetrics;
 
   await prisma.$transaction(async (tx) => {
     await tx.patient.update({
@@ -561,6 +575,30 @@ export async function updatePatientClinicalData(patientId, payload, organization
         where: { patientId: numericPatientId },
         data: {
           lastFilterChangeDate: new Date(ventilatoryLastChange)
+        }
+      });
+    }
+
+    if (admissionMetricsPayload !== undefined && patient.admissionMetrics?.id) {
+      await tx.admissionMetrics.update({
+        where: { patientId: numericPatientId },
+        data: {
+          daysOnVM:
+            admissionMetricsPayload?.mechanicalVentilationDays !== undefined
+              ? normalizeNonNegativeInteger(admissionMetricsPayload.mechanicalVentilationDays)
+              : undefined,
+          extubationCount:
+            admissionMetricsPayload?.extubationCount !== undefined
+              ? normalizeNonNegativeInteger(admissionMetricsPayload.extubationCount) ?? 0
+              : undefined,
+          reintubationCount:
+            admissionMetricsPayload?.reintubationCount !== undefined
+              ? normalizeNonNegativeInteger(admissionMetricsPayload.reintubationCount) ?? 0
+              : undefined,
+          nonInvasiveVentilationDays:
+            admissionMetricsPayload?.nonInvasiveVentilationDays !== undefined
+              ? normalizeNonNegativeInteger(admissionMetricsPayload.nonInvasiveVentilationDays) ?? 0
+              : undefined
         }
       });
     }

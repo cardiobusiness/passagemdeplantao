@@ -171,6 +171,12 @@ export function PatientClinicalForm({ patient }: Props) {
   const [error, setError] = useState("");
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(patient.clinicalUpdatedAt);
   const [lastUpdatedBy, setLastUpdatedBy] = useState<string>(patient.clinicalUpdatedBy);
+  const [admissionMetrics, setAdmissionMetrics] = useState({
+    mechanicalVentilationDays: patient.stayMetrics.mechanicalVentilationDays ?? 0,
+    extubationCount: patient.stayMetrics.extubationCount ?? 0,
+    reintubationCount: patient.stayMetrics.reintubationCount ?? 0,
+    nonInvasiveVentilationDays: patient.stayMetrics.nonInvasiveVentilationDays ?? 0
+  });
 
   function updateListItem<T extends object>(list: T[], index: number, field: keyof T, value: string) {
     const next = [...list];
@@ -246,7 +252,8 @@ export function PatientClinicalForm({ patient }: Props) {
         },
         clinicalNotes,
         conducts: routineConducts,
-        updatedBy
+        updatedBy,
+        admissionMetrics
       });
 
       setLastUpdatedAt(updatedPatient.clinicalUpdatedAt);
@@ -430,6 +437,28 @@ export function PatientClinicalForm({ patient }: Props) {
             <div className={`${styles.field} ${styles.full}`}>
               <label htmlFor="ventObservations">Observacoes ventilatorias</label>
               <textarea id="ventObservations" rows={3} value={mechanicalVentilation.observations} onChange={(event) => setMechanicalVentilation((current) => ({ ...current, observations: event.target.value }))} />
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <h3>Indicadores respiratorios da internacao</h3>
+          <div className={styles.grid}>
+            <div className={styles.field}>
+              <label htmlFor="mechanicalVentilationDays">Dias em ventilacao mecanica</label>
+              <input id="mechanicalVentilationDays" type="number" min="0" value={admissionMetrics.mechanicalVentilationDays} onChange={(event) => setAdmissionMetrics((current) => ({ ...current, mechanicalVentilationDays: Number(event.target.value || 0) }))} />
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="extubationCount">Numero de extubacoes</label>
+              <input id="extubationCount" type="number" min="0" value={admissionMetrics.extubationCount} onChange={(event) => setAdmissionMetrics((current) => ({ ...current, extubationCount: Number(event.target.value || 0) }))} />
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="reintubationCount">Numero de reintubacoes</label>
+              <input id="reintubationCount" type="number" min="0" value={admissionMetrics.reintubationCount} onChange={(event) => setAdmissionMetrics((current) => ({ ...current, reintubationCount: Number(event.target.value || 0) }))} />
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="nonInvasiveVentilationDays">Dias em ventilacao nao invasiva</label>
+              <input id="nonInvasiveVentilationDays" type="number" min="0" value={admissionMetrics.nonInvasiveVentilationDays} onChange={(event) => setAdmissionMetrics((current) => ({ ...current, nonInvasiveVentilationDays: Number(event.target.value || 0) }))} />
             </div>
           </div>
         </section>

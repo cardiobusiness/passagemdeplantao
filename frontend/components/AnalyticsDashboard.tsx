@@ -238,6 +238,26 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
       : filteredPatients.reduce((sum, patient) => sum + (patient.stayMetrics?.ctiDays ?? 0), 0) / filteredPatients.length;
   const overdueFilters = filteredPatients.filter((patient) => patient.filterStatus.isOverdue).length;
   const preventiveFilters = filteredPatients.filter((patient) => patient.filterStatus.isPreventive).length;
+  const mechanicalVentilationSamples = filteredPatients
+    .map((patient) => patient.stayMetrics?.mechanicalVentilationDays)
+    .filter((value): value is number => value !== null && value !== undefined);
+  const averageMechanicalVentilationDays =
+    mechanicalVentilationSamples.length === 0
+      ? 0
+      : mechanicalVentilationSamples.reduce((sum, value) => sum + value, 0) / mechanicalVentilationSamples.length;
+  const totalExtubations = filteredPatients.reduce((sum, patient) => sum + patient.stayMetrics.extubationCount, 0);
+  const totalReintubations = filteredPatients.reduce((sum, patient) => sum + patient.stayMetrics.reintubationCount, 0);
+  const reintubationRate = totalExtubations === 0 ? 0 : (totalReintubations / totalExtubations) * 100;
+  const extubationRate =
+    filteredPatients.length === 0
+      ? 0
+      : (filteredPatients.filter((patient) => patient.stayMetrics.extubationCount > 0).length / filteredPatients.length) * 100;
+  const nonInvasiveVentilationRate =
+    filteredPatients.length === 0
+      ? 0
+      : (filteredPatients.filter((patient) => patient.stayMetrics.nonInvasiveVentilationDays > 0).length /
+          filteredPatients.length) *
+        100;
   const originStats = dashboard.originStats ?? [];
   const populatedOriginStats = originStats.filter((item) => item.total > 0);
   const averageAgeByOrigin = dashboard.averageAgeByOrigin ?? [];
@@ -494,6 +514,30 @@ export default function AnalyticsDashboard({ beds, patients, dashboard }: Analyt
           <span className={styles.metricLabel}>Tempo medio de permanencia</span>
           <strong className={styles.metricValue}>{formatMetric(averageStay, " dias")}</strong>
           <p>Media de internacao no CTI no recorte filtrado.</p>
+        </article>
+
+        <article className={styles.metricCard}>
+          <span className={styles.metricLabel}>Tempo medio em VM</span>
+          <strong className={styles.metricValue}>{formatMetric(averageMechanicalVentilationDays, " dias")}</strong>
+          <p>Media dos dias em ventilacao mecanica no recorte filtrado.</p>
+        </article>
+
+        <article className={styles.metricCard}>
+          <span className={styles.metricLabel}>Indice de reintubacao</span>
+          <strong className={styles.metricValue}>{formatMetric(reintubationRate, "%")}</strong>
+          <p>Reintubacoes em relacao ao total de extubacoes registradas.</p>
+        </article>
+
+        <article className={styles.metricCard}>
+          <span className={styles.metricLabel}>Indice de extubacao</span>
+          <strong className={styles.metricValue}>{formatMetric(extubationRate, "%")}</strong>
+          <p>Pacientes com extubacao registrada sobre o total monitorado.</p>
+        </article>
+
+        <article className={styles.metricCard}>
+          <span className={styles.metricLabel}>Ventilacao nao invasiva</span>
+          <strong className={styles.metricValue}>{formatMetric(nonInvasiveVentilationRate, "%")}</strong>
+          <p>Pacientes com ao menos um dia de VNI registrado.</p>
         </article>
 
         <article className={styles.metricCard}>

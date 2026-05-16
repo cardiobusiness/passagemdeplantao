@@ -167,6 +167,9 @@ model AdmissionMetrics {
   daysOnIOT            Int?
   daysOnTQT            Int?
   extubationTime       Int?
+  extubationCount      Int      @default(0)
+  reintubationCount    Int      @default(0)
+  nonInvasiveVentilationDays Int @default(0)
   lastFilterChangeDate DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

@@ -17,6 +17,8 @@ prisma/migrations/*
 !prisma/migrations/20260425173000_add_user_sector_access/migration.sql
 !prisma/migrations/20260426100000_add_multi_organization_users/
 !prisma/migrations/20260426100000_add_multi_organization_users/migration.sql
+!prisma/migrations/20260516120000_add_respiratory_analytics_metrics/
+!prisma/migrations/20260516120000_add_respiratory_analytics_metrics/migration.sql
 
 # IDE
 .vscode/

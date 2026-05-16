@@ -12,7 +12,7 @@ import {
   getServerMonthlyDashboard,
   getServerPatients
 } from "@/lib/server-api";
-import { Bed, DashboardSummary, Patient, User } from "@/lib/types";
+import { Bed, DashboardSummary, Patient } from "@/lib/types";
 import { formatVentilatorySupport } from "@/lib/ventilatorySupport";
 import styles from "@/components/dashboard-shell.module.css";
 

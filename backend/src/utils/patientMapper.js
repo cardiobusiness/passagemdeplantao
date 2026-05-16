@@ -288,6 +288,9 @@ export function mapPatientRecord(patient) {
       iotDays: admissionMetrics.daysOnIOT ?? null,
       tqtDays: admissionMetrics.daysOnTQT ?? null,
       extubationHours: admissionMetrics.extubationTime ?? null,
+      extubationCount: admissionMetrics.extubationCount ?? 0,
+      reintubationCount: admissionMetrics.reintubationCount ?? 0,
+      nonInvasiveVentilationDays: admissionMetrics.nonInvasiveVentilationDays ?? 0,
       extubationDays:
         admissionMetrics.extubationTime == null ? null : Math.ceil(Number(admissionMetrics.extubationTime) / 24)
     },

@@ -204,6 +204,9 @@ export type Patient = {
     tqtDays: number | null;
     extubationHours: number | null;
     extubationDays: number | null;
+    extubationCount: number;
+    reintubationCount: number;
+    nonInvasiveVentilationDays: number;
   };
   filterStatus: {
     lastFilterChangeDateTime: string | null;
@@ -271,6 +274,12 @@ export type UpdatePatientClinicalPayload = {
   clinicalNotes?: string;
   conducts?: string[];
   updatedBy?: string;
+  admissionMetrics?: {
+    mechanicalVentilationDays?: number | null;
+    extubationCount?: number;
+    reintubationCount?: number;
+    nonInvasiveVentilationDays?: number;
+  };
 };
 
 export type DischargePatientPayload = {
@@ -335,6 +344,10 @@ export type DashboardSummary = {
   respiratoryEvolutions: number;
   motorEvolutions: number;
   averageLengthOfStay: number;
+  averageMechanicalVentilationDays: number;
+  reintubationRate: number;
+  extubationRate: number;
+  nonInvasiveVentilationRate: number;
   averageAdmissionAge: number;
   originStats: Array<{
     origin: string;

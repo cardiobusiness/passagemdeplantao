@@ -16,7 +16,7 @@ export async function getMonthlyDashboard(organizationId, sectorIds) {
   const bedWhere = activeBedWhere(organizationId, sectorIds);
   const patientWhere = activePatientWhere(organizationId, sectorIds);
 
-  const [totalBeds, occupiedBeds, totalPatients, admissionsThisMonth, activeAlerts, patientOrigins] = await Promise.all([
+  const [totalBeds, occupiedBeds, totalPatients, admissionsThisMonth, activeAlerts, patientOrigins, respiratoryMetrics] = await Promise.all([
     prisma.bed.count({
       where: bedWhere
     }),
@@ -47,6 +47,17 @@ export async function getMonthlyDashboard(organizationId, sectorIds) {
       select: {
         age: true,
         origin: true
+      }
+    }),
+    prisma.admissionMetrics.findMany({
+      where: {
+        patient: patientWhere
+      },
+      select: {
+        daysOnVM: true,
+        extubationCount: true,
+        reintubationCount: true,
+        nonInvasiveVentilationDays: true
       }
     })
   ]);
@@ -137,6 +148,26 @@ export async function getMonthlyDashboard(organizationId, sectorIds) {
     };
   });
 
+  const mechanicalVentilationSamples = respiratoryMetrics
+    .map((metric) => metric.daysOnVM)
+    .filter((value) => value != null);
+  const averageMechanicalVentilationDays =
+    mechanicalVentilationSamples.length > 0
+      ? Number(
+          (
+            mechanicalVentilationSamples.reduce((sum, value) => sum + Number(value ?? 0), 0) /
+            mechanicalVentilationSamples.length
+          ).toFixed(1)
+        )
+      : 0;
+  const totalExtubations = respiratoryMetrics.reduce((sum, metric) => sum + (metric.extubationCount ?? 0), 0);
+  const totalReintubations = respiratoryMetrics.reduce((sum, metric) => sum + (metric.reintubationCount ?? 0), 0);
+  const patientsWithExtubation = respiratoryMetrics.filter((metric) => (metric.extubationCount ?? 0) > 0).length;
+  const patientsWithNiv = respiratoryMetrics.filter((metric) => (metric.nonInvasiveVentilationDays ?? 0) > 0).length;
+  const reintubationRate = totalExtubations > 0 ? Math.round((totalReintubations / totalExtubations) * 100) : 0;
+  const extubationRate = totalPatients > 0 ? Math.round((patientsWithExtubation / totalPatients) * 100) : 0;
+  const nonInvasiveVentilationRate = totalPatients > 0 ? Math.round((patientsWithNiv / totalPatients) * 100) : 0;
+
   return {
     month: now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
     occupancyRate: Math.round(occupancyRate),
@@ -144,6 +175,10 @@ export async function getMonthlyDashboard(organizationId, sectorIds) {
     respiratoryEvolutions,
     motorEvolutions,
     averageLengthOfStay: avgLengthOfStay,
+    averageMechanicalVentilationDays,
+    reintubationRate,
+    extubationRate,
+    nonInvasiveVentilationRate,
     averageAdmissionAge,
     originStats,
     averageAgeByOrigin,
